@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Portfolio</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+    <script src="sketch.js"></script>
+    
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        width: 100%; height: 100%; overflow: hidden;
+        background-color: #222;
+        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", Roboto, sans-serif;
+      }
+      canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+
+      #detail-layer {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: 10;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+
+      #detail-layer.active { opacity: 1; pointer-events: auto; }
+
+      #html-card {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 450px; height: 250px;
+        background-size: cover; background-position: center;
+        border-radius: 0;
+        /* 초기 그림자 없음 */
+        box-shadow: 0 0 0 rgba(0,0,0,0); 
+        
+        transform: translate(-50%, -50%) rotateY(180deg);
+        transform-style: preserve-3d;
+        transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+      }
+
+      #detail-layer.active #html-card {
+        top: 60px !important; left: 60px !important;
+        /* 왼쪽 위로 갈 때도 뒷면(180deg) 유지 */
+        transform: translate(0, 0) rotateY(180deg) !important;
+        
+        /* HTML 상태에서의 그림자 (p5 그림자와 자연스럽게 연결) */
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 
+                    0 10px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      #content-wrapper {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        padding: 60px; display: flex;
+        opacity: 0; transform: translateY(20px);
+        transition: all 0.6s ease 0.3s;
+      }
+      #detail-layer.active #content-wrapper { opacity: 1; transform: translateY(0); }
+
+      .left-section { width: 450px; flex-shrink: 0; margin-top: 270px; color: #fff; }
+      .project-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; }
+      .project-desc { font-size: 16px; line-height: 1.6; opacity: 0.8; }
+      
+      .btn-close {
+        margin-top: 30px; padding: 10px 20px;
+        border: 1px solid rgba(255,255,255,0.3);
+        background: transparent; color: white; cursor: pointer;
+        transition: background 0.3s;
+      }
+      .btn-close:hover { background: rgba(255,255,255,0.1); }
+
+      .right-section { flex-grow: 1; margin-left: 60px; height: 100%; overflow-y: auto; padding-right: 20px; }
+      .right-section::-webkit-scrollbar { width: 8px; }
+      .right-section::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+      .right-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+      .grid-item {
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        height: 200px; display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.3); transition: transform 0.3s;
+      }
+      .grid-item:hover { transform: translateY(-5px); background: rgba(255,255,255,0.1); }
+      .text-block { grid-column: 1 / -1; height: auto; padding: 30px; text-align: left; display: block; }
+      .text-block h3 { color: #fff; margin-bottom: 10px; }
+      .text-block p { color: rgba(255,255,255,0.7); line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div id="detail-layer">
+      <div id="html-card"></div>
+      <div id="content-wrapper">
+        <div class="left-section">
+          <div class="project-title">DIGITAL WEATHERING</div>
+          <div class="project-desc">
+            이 프로젝트는 시간의 흐름에 따라 데이터가 남기는 흔적을<br>
+            시각화한 인터랙티브 아트워크입니다.<br><br>
+            마우스의 움직임은 바람이 되고, 클릭은 물리적 힘이 되어<br>
+            명함이라는 오브젝트에 디지털 풍화를 일으킵니다.
+          </div>
+          <button class="btn-close" onclick="closeDetail()">돌아가기</button>
+        </div>
+        <div class="right-section">
+          <div class="grid-container">
+            <div class="grid-item text-block">
+              <h3>Process Archive</h3>
+              <p>초기 스케치부터 최종 렌더링까지의 과정을 기록했습니다.</p>
+            </div>
+            <div class="grid-item">Concept Art 01</div>
+            <div class="grid-item">Prototype A</div>
+            <div class="grid-item">Prototype B</div>
+            <div class="grid-item">Final Render</div>
+            <div class="grid-item text-block">
+              <h3>Technical Note</h3>
+              <p>p5.js, WebGL, GLSL Shader 활용</p>
+            </div>
+            <div class="grid-item">Code Snippet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
