@@ -11,163 +11,163 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       
-      /* [핵심] 모바일 터치 제스처(스크롤 등) 막기 */
       html, body {
         width: 100%; height: 100%; overflow: hidden;
         background-color: #222;
         font-family: -apple-system, BlinkMacSystemFont, "Pretendard", Roboto, sans-serif;
-        touch-action: none; /* 터치 스크롤 방지 */
-        user-select: none; /* 텍스트 선택 방지 */
+        /* p5.js 캔버스 외의 요소(오버레이 등)에서는 터치 동작 허용 */
+        touch-action: manipulation; 
+        user-select: none;
         -webkit-user-select: none;
       }
+      
       canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
+      /* 상세 정보 레이어 */
       #detail-layer {
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         z-index: 10;
-        opacity: 0; pointer-events: none;
-        transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-        background: rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        opacity: 0; pointer-events: none; /* 평소엔 클릭 통과 */
+        transition: opacity 0.4s ease;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
       }
 
-      #detail-layer.active { opacity: 1; pointer-events: auto; }
-
-      #html-card {
-        position: absolute;
-        top: 50%; left: 50%;
-        width: 450px; height: 250px;
-        background-size: cover; background-position: center;
-        border-radius: 0;
-        box-shadow: 0 0 0 rgba(0,0,0,0); 
-        transform: translate(-50%, -50%) rotateY(180deg);
-        transform-style: preserve-3d;
-        transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+      #detail-layer.active { 
+        opacity: 1; 
+        pointer-events: auto; /* 활성화되면 클릭/스크롤 가능 */
       }
 
-      #detail-layer.active #html-card {
-        top: 60px !important; left: 60px !important;
-        transform: translate(0, 0) rotateY(180deg) !important;
-        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 
-                    0 10px 20px rgba(0, 0, 0, 0.4);
-      }
-
-      /* 모바일 레이아웃 대응 */
-      @media (max-width: 768px) {
-        #detail-layer.active #html-card {
-          /* 모바일에서는 카드가 위쪽에 더 붙게 */
-          top: 30px !important; left: 50% !important;
-          transform: translate(-50%, 0) rotateY(180deg) !important;
-        }
-      }
-
+      /* 콘텐츠 래퍼 */
       #content-wrapper {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         padding: 60px; display: flex;
         opacity: 0; transform: translateY(20px);
-        transition: all 0.6s ease 0.3s;
+        transition: all 0.5s ease 0.1s;
       }
       #detail-layer.active #content-wrapper { opacity: 1; transform: translateY(0); }
 
-      /* [NEW] ? 버튼 스타일 */
+      /* 왼쪽 섹션 (명함 이미지 제거됨) */
+      .left-section { 
+        width: 400px; flex-shrink: 0; 
+        /* 중앙 정렬로 변경 */
+        display: flex; flex-direction: column; justify-content: center;
+        color: #fff; 
+        padding-right: 40px;
+      }
+      
+      .project-title { font-size: 42px; font-weight: 800; margin-bottom: 20px; line-height: 1.1; }
+      .project-desc { font-size: 16px; line-height: 1.7; opacity: 0.8; margin-bottom: 40px; }
+      
+      .btn-close {
+        padding: 12px 30px;
+        width: fit-content;
+        border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.05); color: white; cursor: pointer;
+        font-size: 14px; font-weight: bold;
+        transition: background 0.3s;
+        border-radius: 30px;
+      }
+      .btn-close:hover { background: rgba(255,255,255,0.2); }
+
+      /* 오른쪽 섹션 (스크롤 영역) */
+      .right-section { 
+        flex-grow: 1; 
+        height: 100%; 
+        overflow-y: auto; /* 스크롤 활성화 */
+        padding-right: 10px; 
+        /* 모바일 스크롤 부드럽게 */
+        -webkit-overflow-scrolling: touch; 
+      }
+      
+      /* 스크롤바 커스텀 */
+      .right-section::-webkit-scrollbar { width: 6px; }
+      .right-section::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+      .right-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding-bottom: 60px; }
+      .grid-item {
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+        height: 220px; display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.3); transition: transform 0.3s;
+        border-radius: 8px;
+      }
+      .grid-item:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); }
+      
+      .text-block { 
+        grid-column: 1 / -1; height: auto; 
+        padding: 30px; text-align: left; display: block; 
+        background: none; border: none;
+      }
+      .text-block h3 { color: #fff; margin-bottom: 15px; font-size: 24px; }
+      .text-block p { color: rgba(255,255,255,0.6); line-height: 1.6; }
+
+      /* ? 버튼 */
       #help-btn {
-        position: fixed;
-        bottom: 30px; left: 50%;
-        transform: translateX(-50%);
-        width: 40px; height: 40px;
-        background: rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        border-radius: 50%;
-        color: white;
-        font-size: 20px; font-weight: bold;
+        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+        width: 44px; height: 44px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%; color: white;
+        font-size: 18px; font-weight: 600;
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; z-index: 20;
-        backdrop-filter: blur(5px);
-        transition: background 0.3s;
+        backdrop-filter: blur(10px);
+        transition: transform 0.2s, background 0.2s;
+        /* 모바일 터치 영역 확보 */
+        touch-action: manipulation;
       }
-      #help-btn:hover { background: rgba(255, 255, 255, 0.4); }
+      #help-btn:active { transform: translateX(-50%) scale(0.9); background: rgba(255, 255, 255, 0.3); }
 
-      /* [NEW] 도움말 모달 */
+      /* 도움말 모달 */
       #help-modal {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 30;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.8); z-index: 30;
         display: flex; align-items: center; justify-content: center;
-        opacity: 0; pointer-events: none;
-        transition: opacity 0.3s;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s;
         backdrop-filter: blur(5px);
       }
       #help-modal.show { opacity: 1; pointer-events: auto; }
       
       .modal-box {
-        background: #222;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 30px;
-        border-radius: 15px;
-        text-align: center;
-        color: white;
-        max-width: 80%;
+        background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 40px; border-radius: 16px;
+        text-align: center; color: white; max-width: 320px; width: 85%;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
       }
-      .modal-box h3 { margin-bottom: 15px; font-size: 20px; }
-      .modal-box p { line-height: 1.6; opacity: 0.8; margin-bottom: 20px; }
+      .modal-box h3 { margin-bottom: 20px; font-size: 22px; }
+      .modal-box p { line-height: 1.8; color: #aaa; margin-bottom: 30px; font-size: 15px; }
       .close-help {
-        padding: 8px 20px;
-        background: white; color: black;
-        border: none; border-radius: 20px;
-        font-weight: bold; cursor: pointer;
+        padding: 12px 30px; background: white; color: black;
+        border: none; border-radius: 30px; font-weight: 700; cursor: pointer;
+        font-size: 14px;
       }
 
-      /* 기존 레이아웃 CSS 유지 */
-      .left-section { width: 450px; flex-shrink: 0; margin-top: 270px; color: #fff; }
-      .project-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; }
-      .project-desc { font-size: 16px; line-height: 1.6; opacity: 0.8; }
-      .btn-close {
-        margin-top: 30px; padding: 10px 20px;
-        border: 1px solid rgba(255,255,255,0.3);
-        background: transparent; color: white; cursor: pointer;
-        transition: background 0.3s;
-      }
-      .btn-close:hover { background: rgba(255,255,255,0.1); }
-      .right-section { flex-grow: 1; margin-left: 60px; height: 100%; overflow-y: auto; padding-right: 20px; }
-      .right-section::-webkit-scrollbar { width: 8px; }
-      .right-section::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-      .right-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-      .grid-item {
-        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-        height: 200px; display: flex; align-items: center; justify-content: center;
-        color: rgba(255,255,255,0.3); transition: transform 0.3s;
-      }
-      .grid-item:hover { transform: translateY(-5px); background: rgba(255,255,255,0.1); }
-      .text-block { grid-column: 1 / -1; height: auto; padding: 30px; text-align: left; display: block; }
-      .text-block h3 { color: #fff; margin-bottom: 10px; }
-      .text-block p { color: rgba(255,255,255,0.7); line-height: 1.5; }
-
-      /* 모바일 반응형 */
-      @media (max-width: 850px) {
-        #content-wrapper { flex-direction: column; padding: 20px; overflow-y: auto; }
-        .left-section { width: 100%; margin-top: 250px; margin-bottom: 40px; }
+      /* 모바일 레이아웃 */
+      @media (max-width: 900px) {
+        #content-wrapper { flex-direction: column; padding: 30px 20px; }
+        .left-section { width: 100%; margin-bottom: 40px; padding-right: 0; text-align: center; align-items: center; }
+        .project-title { font-size: 32px; }
+        .btn-close { margin: 0 auto; }
         .right-section { width: 100%; margin-left: 0; padding-right: 0; overflow: visible; }
-        .grid-container { grid-template-columns: 1fr; }
+        /* 모바일에서는 그리드를 1열로 */
+        .grid-container { grid-template-columns: 1fr; padding-bottom: 100px; } 
       }
     </style>
   </head>
   <body>
     <div id="detail-layer">
-      <div id="html-card"></div>
       <div id="content-wrapper">
         <div class="left-section">
           <div class="project-title">DIGITAL WEATHERING</div>
           <div class="project-desc">
-            이 프로젝트는 시간의 흐름에 따라 데이터가 남기는 흔적을<br>
-            시각화한 인터랙티브 아트워크입니다.<br><br>
-            마우스의 움직임은 바람이 되고, 클릭은 물리적 힘이 되어<br>
-            명함이라는 오브젝트에 디지털 풍화를 일으킵니다.
+            시간의 흐름에 따라 데이터가 남기는 흔적을 시각화했습니다.<br>
+            물리 엔진을 통해 우연성이 만들어내는 조형미를 탐구합니다.
           </div>
           <button class="btn-close" onclick="closeDetail()">돌아가기</button>
         </div>
+        
         <div class="right-section">
           <div class="grid-container">
             <div class="grid-item text-block">
@@ -176,7 +176,13 @@
             </div>
             <div class="grid-item">Concept Art 01</div>
             <div class="grid-item">Prototype A</div>
+            <div class="grid-item">Prototype B</div>
             <div class="grid-item">Final Render</div>
+            <div class="grid-item text-block">
+              <h3>Technical Note</h3>
+              <p>Built with p5.js & WebGL</p>
+            </div>
+            <div class="grid-item">Code Snippet</div>
           </div>
         </div>
       </div>
@@ -187,33 +193,28 @@
     <div id="help-modal">
       <div class="modal-box">
         <h3>How to Interact</h3>
-        <p id="help-text">설명 텍스트 로딩중...</p>
-        <button class="close-help">확인</button>
+        <p id="help-text">Loading...</p>
+        <button class="close-help">OK</button>
       </div>
     </div>
 
     <script>
-      // 도움말 로직 (sketch.js 로드 전 실행)
       const helpBtn = document.getElementById('help-btn');
       const helpModal = document.getElementById('help-modal');
       const helpText = document.getElementById('help-text');
       const closeHelp = document.querySelector('.close-help');
 
-      // 모바일 감지 (간단한 정규식)
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-      helpBtn.addEventListener('click', () => {
-        // 텍스트 설정
+      helpBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // 이벤트 전파 방지
         if (isMobile) {
           helpText.innerHTML = "👆 <b>드래그:</b> 명함 이동<br>👆 <b>터치:</b> 뒤집기<br>⏱ <b>1초 꾹:</b> 상세 보기<br>📱 <b>휴대폰 흔들기:</b> 명함 섞기";
           
-          // [중요] iOS 13+ 흔들기 권한 요청
           if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission()
               .then(response => {
-                if (response === 'granted') {
-                  console.log('흔들기 권한 허용됨');
-                }
+                if (response === 'granted') console.log('Motion granted');
               })
               .catch(console.error);
           }
@@ -223,7 +224,8 @@
         helpModal.classList.add('show');
       });
 
-      closeHelp.addEventListener('click', () => {
+      closeHelp.addEventListener('click', (e) => {
+        e.stopPropagation();
         helpModal.classList.remove('show');
       });
     </script>
