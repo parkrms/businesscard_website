@@ -1,5 +1,6 @@
 // 1. 전역 변수 설정
 let cardFrontImage;
+let shadowTexture;
 let cards = [];
 let numCards = 10;
 let cardW, cardH; 
@@ -53,14 +54,30 @@ function setup() {
 
   calculateCardDimensions();
   
+  // 그림자 텍스처 (기본 그림자용)
+  let shadowTextureWidth = cardW * 1.5; 
+  let shadowTextureHeight = cardH * 1.5; 
+  
+  shadowTexture = createGraphics(shadowTextureWidth, shadowTextureHeight);
+  shadowTexture.noStroke();
+  shadowTexture.rectMode(CENTER); 
+  
+  for(let i = 40; i > 0; i -= 1) { 
+    let alpha = map(i, 40, 0, 0, 255); 
+    alpha = pow(alpha / 255, 2.0) * 255; 
+    shadowTexture.fill(0, 0, 0, alpha);
+    let currentW = shadowTextureWidth * (i / 40);
+    let currentH = shadowTextureHeight * (i / 40);
+    shadowTexture.rect(shadowTexture.width/2, shadowTexture.height/2, currentW, currentH, 15); 
+  }
+
   for (let hex of backColorsHex) {
     backColors.push(color(hex));
   }
 
-  // [수정] 배치 범위 확장 (뭉침 방지)
-  // safeMargin을 줄여서 화면 끝까지 꽉 차게 배치
+  // 명함 배치
   for (let i = 0; i < numCards; i++) {
-    let safeMarginX = cardW * 0.6; // 카드가 화면 밖으로 살짝만 안 나가게
+    let safeMarginX = cardW * 0.6; 
     let safeMarginY = cardH * 0.6;
     
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
@@ -71,12 +88,11 @@ function setup() {
 }
 
 function calculateCardDimensions() {
-  // [수정] 카드 크기 축소 (요청사항 반영)
-  // PC: 0.25 -> 0.22, Mobile: 0.6 -> 0.55
-  let ratio = isMobileDevice ? 0.55 : 0.22;
+  // [수정] PC 크기 복구 (0.25), 모바일 최적화 (0.55)
+  // 여백 확보를 위해 기존보다 약간 작게 설정
+  let ratio = isMobileDevice ? 0.55 : 0.25;
   
-  // 최소/최대 크기 제한도 조금 줄임
-  cardW = constrain(windowWidth * ratio, 180, 500); 
+  cardW = constrain(windowWidth * ratio, 200, 500); 
   cardH = cardW * (50 / 90); 
   shakeRadius = cardW * 0.8; 
 }
@@ -97,10 +113,9 @@ function draw() {
   }
 
   // 2. 카드 그리기
-  // 상세 모드일 때는 주인공 카드를 캔버스에서 숨김 (안 그림)
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
-    if (c === focusedCard) continue; 
+    if (c === focusedCard) continue; // 상세보기에 들어간 카드는 숨김
     
     if (!c.isDragging && !c.isFlipping) {
       push();
@@ -127,7 +142,7 @@ function draw() {
   }
 }
 
-// 모바일 흔들기 (p5.js 내장)
+// 모바일 흔들기
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
@@ -149,10 +164,15 @@ function triggerDetailMode(card) {
   appMode = 'DETAIL';
   isHolding = false;
   focusedCard = card;
+  
+  // [중요 버그 수정]
+  // 상세 모드로 진입할 때 드래그 상태를 강제로 해제해야 함.
+  // 그렇지 않으면 돌아왔을 때 여전히 드래그 중인 것으로 인식해 물리 엔진이 멈춤.
+  card.stopDrag(); 
+  card.isDragging = false; 
   currentCard = null; 
 
-  // [수정] HTML 카드 관련 코드 삭제 (이미지 안 띄움)
-  // 오직 레이어만 활성화
+  // 레이어 활성화
   document.getElementById('detail-layer').classList.add('active');
 }
 
@@ -160,26 +180,22 @@ window.closeDetail = function() {
   let layer = document.getElementById('detail-layer');
   layer.classList.remove('active');
   
-  // HTML 카드가 없으므로 바로 복귀 타이머 가동
+  // HTML 애니메이션 없이 오버레이만 닫힘
   setTimeout(() => {
     appMode = 'NORMAL';
     if (focusedCard) {
       // 위치나 상태 변화 없이 그대로 복귀 (뒷면 상태 유지)
       focusedCard = null;
     }
-  }, 500); 
+  }, 400); // CSS transition 시간과 맞춤
 };
 
-// --- [핵심 수정] 터치 이벤트 처리 ---
+// 터치 이벤트 처리
 function touchStarted() {
-  // 1. 상세 모드이거나
-  // 2. 캔버스가 아닌 UI요소(버튼, 모달 등)를 터치했다면
-  // => p5.js가 개입하지 말고 브라우저 기본 동작(클릭, 스크롤) 허용
+  // UI 요소(닫기 버튼, 상세화면 등) 터치 시 p5 무시
   if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) {
     return true; 
   }
-  
-  // 캔버스 터치일 때만 p5 로직 실행 및 기본 동작 차단
   mousePressed();
   return false; 
 }
@@ -193,13 +209,15 @@ function touchMoved() {
 }
 
 function touchEnded() {
+  // 터치 끝날 때도 UI 상호작용 보장
   if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) {
+    // 여기서 return true 하면 p5의 mouseReleased가 호출 안 될 수 있음
+    // 하지만 상세 모드에선 p5 조작 필요 없으니 상관 없음
     return true;
   }
   mouseReleased();
   return false;
 }
-// -------------------------------------
 
 function mousePressed() {
   if (appMode === 'DETAIL') return; 
@@ -211,7 +229,6 @@ function mousePressed() {
   let mX = mouseX - width/2;
   let mY = mouseY - height/2;
 
-  // 터치 좌표 보정
   if (touches.length > 0) {
     mX = touches[0].x - width/2;
     mY = touches[0].y - height/2;
@@ -233,7 +250,6 @@ function mouseDragged() {
   if (appMode === 'DETAIL') return;
 
   if (currentCard != null) {
-    // 드래그 발생 시 롱프레스 취소
     if (dist(mouseX, mouseY, pmouseX, pmouseY) > 5) {
       isHolding = false;
     }
@@ -393,7 +409,7 @@ class BusinessCard {
     translate(this.x, this.y, this.z);
     rotate(this.angle);
 
-    // [수정] 롱프레스 그림자 코드 삭제됨 (요청사항 반영)
+    // [수정] 롱프레스 시 그림자 코드 삭제됨
 
     translate(this.flipAnchorX, this.flipAnchorY, 0);
     rotateY(this.flipAngle);
