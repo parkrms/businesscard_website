@@ -1,6 +1,5 @@
 // 1. 전역 변수 설정
 let cardFrontImage;
-let shadowTexture;
 let cards = [];
 let numCards = 10;
 let cardW, cardH; 
@@ -45,7 +44,6 @@ function setup() {
   // 모바일 여부 체크
   isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
 
-  // 롱프레스 시간 설정
   if (isMobileDevice) {
     holdDuration = 1000; // 모바일 1초
     setShakeThreshold(30); 
@@ -55,33 +53,15 @@ function setup() {
 
   calculateCardDimensions();
   
-  // 그림자 텍스처 생성
-  let shadowTextureWidth = cardW * 1.5; 
-  let shadowTextureHeight = cardH * 1.5; 
-  
-  shadowTexture = createGraphics(shadowTextureWidth, shadowTextureHeight);
-  shadowTexture.noStroke();
-  shadowTexture.rectMode(CENTER); 
-  
-  for(let i = 40; i > 0; i -= 1) { 
-    let alpha = map(i, 40, 0, 0, 255); 
-    alpha = pow(alpha / 255, 2.0) * 255; 
-    shadowTexture.fill(0, 0, 0, alpha);
-    let currentW = shadowTextureWidth * (i / 40);
-    let currentH = shadowTextureHeight * (i / 40);
-    shadowTexture.rect(shadowTexture.width/2, shadowTexture.height/2, currentW, currentH, 15); 
-  }
-
   for (let hex of backColorsHex) {
     backColors.push(color(hex));
   }
 
-  // [수정] 배치 범위 확장
-  // 기존: width/2 - cardW (명함 전체 너비만큼 안쪽으로 들어옴 -> 중앙에 뭉침)
-  // 수정: width/2 - cardW/2 (명함 절반 너비만큼만 안쪽으로 -> 화면 꽉 채움)
+  // [수정] 배치 범위 확장 (뭉침 방지)
+  // safeMargin을 줄여서 화면 끝까지 꽉 차게 배치
   for (let i = 0; i < numCards; i++) {
-    let safeMarginX = cardW / 2;
-    let safeMarginY = cardH / 2;
+    let safeMarginX = cardW * 0.6; // 카드가 화면 밖으로 살짝만 안 나가게
+    let safeMarginY = cardH * 0.6;
     
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
@@ -91,9 +71,12 @@ function setup() {
 }
 
 function calculateCardDimensions() {
-  // 모바일이면 카드를 조금 더 크게 보이게 비율 조정
-  let ratio = isMobileDevice ? 0.6 : 0.25;
-  cardW = constrain(windowWidth * ratio, 220, 550); 
+  // [수정] 카드 크기 축소 (요청사항 반영)
+  // PC: 0.25 -> 0.22, Mobile: 0.6 -> 0.55
+  let ratio = isMobileDevice ? 0.55 : 0.22;
+  
+  // 최소/최대 크기 제한도 조금 줄임
+  cardW = constrain(windowWidth * ratio, 180, 500); 
   cardH = cardW * (50 / 90); 
   shakeRadius = cardW * 0.8; 
 }
@@ -114,6 +97,7 @@ function draw() {
   }
 
   // 2. 카드 그리기
+  // 상세 모드일 때는 주인공 카드를 캔버스에서 숨김 (안 그림)
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue; 
@@ -143,7 +127,7 @@ function draw() {
   }
 }
 
-// p5.js 내장 흔들기 감지 함수 (모바일용)
+// 모바일 흔들기 (p5.js 내장)
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
@@ -152,15 +136,11 @@ function deviceShaken() {
   
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
-    
     let randomAngle = random(TWO_PI);
-    let forceMag = random(10, 20); 
-    
+    let forceMag = random(15, 25); 
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
-    
-    let randomSpin = random(-0.2, 0.2); 
-    
+    let randomSpin = random(-0.3, 0.3); 
     card.applyForce(forceX, forceY, randomSpin);
   }
 }
@@ -171,60 +151,51 @@ function triggerDetailMode(card) {
   focusedCard = card;
   currentCard = null; 
 
-  let htmlCard = document.getElementById('html-card');
-  let c = card.backColor;
-  htmlCard.style.backgroundColor = `rgb(${red(c)}, ${green(c)}, ${blue(c)})`;
-  htmlCard.style.width = card.w + 'px'; 
-  htmlCard.style.height = card.h + 'px';
-  
-  let p5X_global = card.x + width/2; 
-  let p5Y_global = card.y + height/2;
-  htmlCard.style.left = p5X_global + 'px';
-  htmlCard.style.top = p5Y_global + 'px';
-  
+  // [수정] HTML 카드 관련 코드 삭제 (이미지 안 띄움)
+  // 오직 레이어만 활성화
   document.getElementById('detail-layer').classList.add('active');
 }
 
 window.closeDetail = function() {
   let layer = document.getElementById('detail-layer');
-  let htmlCard = document.getElementById('html-card');
-
-  if (focusedCard) {
-    let p5X_global = focusedCard.x + width/2;
-    let p5Y_global = focusedCard.y + height/2;
-    htmlCard.style.left = p5X_global + 'px';
-    htmlCard.style.top = p5Y_global + 'px';
-    
-    htmlCard.style.transform = `translate(-50%, -50%) rotateY(180deg)`;
-    htmlCard.style.boxShadow = `0 0 0 rgba(0,0,0,0)`;
-  }
-  
   layer.classList.remove('active');
   
+  // HTML 카드가 없으므로 바로 복귀 타이머 가동
   setTimeout(() => {
     appMode = 'NORMAL';
     if (focusedCard) {
+      // 위치나 상태 변화 없이 그대로 복귀 (뒷면 상태 유지)
       focusedCard = null;
     }
-    htmlCard.style.left = '50%';
-    htmlCard.style.top = '50%';
-    htmlCard.style.transform = 'translate(-50%, -50%) rotateY(180deg)'; 
-  }, 800); 
+  }, 500); 
 };
 
-// --- [핵심] 모바일 터치 이벤트 매핑 ---
+// --- [핵심 수정] 터치 이벤트 처리 ---
 function touchStarted() {
+  // 1. 상세 모드이거나
+  // 2. 캔버스가 아닌 UI요소(버튼, 모달 등)를 터치했다면
+  // => p5.js가 개입하지 말고 브라우저 기본 동작(클릭, 스크롤) 허용
+  if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) {
+    return true; 
+  }
+  
+  // 캔버스 터치일 때만 p5 로직 실행 및 기본 동작 차단
   mousePressed();
-  // 터치 시 브라우저 기본 동작(스크롤 등) 방지
   return false; 
 }
 
 function touchMoved() {
+  if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) {
+    return true;
+  }
   mouseDragged();
   return false;
 }
 
 function touchEnded() {
+  if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) {
+    return true;
+  }
   mouseReleased();
   return false;
 }
@@ -240,7 +211,7 @@ function mousePressed() {
   let mX = mouseX - width/2;
   let mY = mouseY - height/2;
 
-  // 터치 좌표 보정 (p5.js는 touchX/Y를 mouseX/Y에 매핑하지만 간혹 오류가 있을 수 있어 확인)
+  // 터치 좌표 보정
   if (touches.length > 0) {
     mX = touches[0].x - width/2;
     mY = touches[0].y - height/2;
@@ -262,18 +233,17 @@ function mouseDragged() {
   if (appMode === 'DETAIL') return;
 
   if (currentCard != null) {
+    // 드래그 발생 시 롱프레스 취소
     if (dist(mouseX, mouseY, pmouseX, pmouseY) > 5) {
       isHolding = false;
     }
     
     let mX = mouseX - width/2;
     let mY = mouseY - height/2;
-    
     if (touches.length > 0) {
       mX = touches[0].x - width/2;
       mY = touches[0].y - height/2;
     }
-
     currentCard.updateDrag(mX, mY);
   }
 }
@@ -285,7 +255,6 @@ function mouseReleased() {
 
   if (currentCard != null) {
     let duration = millis() - pressStartTime;
-    // 짧게 클릭하면 뒤집기
     if (duration < 200) {
       currentCard.flip();
     }
@@ -381,26 +350,18 @@ class BusinessCard {
   update() {
     if (this.isDragging) {
       this.z = lerp(this.z, 10.0, 0.2);
-      
       let targetAngle = 0.0;
       this.angle = lerpAngle(this.angle, targetAngle, 0.1);
-
-      this.velX = 0;
-      this.velY = 0;
-      this.angleVel = 0;
+      this.velX = 0; this.velY = 0; this.angleVel = 0;
     } else {
       this.z = lerp(this.z, 0.0, 0.1);
-
       this.x += this.velX;
       this.y += this.velY;
       this.angle += this.angleVel;
-
       this.velX *= this.damping;
       this.velY *= this.damping;
       this.angleVel *= this.angleDamping;
 
-      // 화면 바운스
-      // 모바일 등에서 화면 크기 변경 시 카드 크기(w, h)를 동적으로 참조
       let boundW = width/2 - this.w/2;
       let boundH = height/2 - this.h/2;
       
@@ -432,19 +393,7 @@ class BusinessCard {
     translate(this.x, this.y, this.z);
     rotate(this.angle);
 
-    // 롱프레스 그림자 확장 애니메이션
-    if (appMode === 'NORMAL' && isHolding && currentCard === this && abs(this.flipAngle - PI) < 0.2) {
-      let holdProgress = constrain((millis() - holdStartTime) / holdDuration, 0, 1);
-      let ease = holdProgress * holdProgress; 
-      let shadowScale = map(ease, 0, 1, 1.0, 1.15);
-      
-      push();
-      translate(0, 0, -2); 
-      scale(shadowScale); 
-      imageMode(CENTER);
-      image(shadowTexture, 0, 0, this.w, this.h); 
-      pop();
-    }
+    // [수정] 롱프레스 그림자 코드 삭제됨 (요청사항 반영)
 
     translate(this.flipAnchorX, this.flipAnchorY, 0);
     rotateY(this.flipAngle);
