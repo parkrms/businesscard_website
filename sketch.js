@@ -120,7 +120,7 @@ function calculateCardDimensions() {
 // 3. 메인 렌더링 루프 (Draw)
 // ==========================================
 function draw() {
-  background(20); // 배경색 (다크 그레이)
+  background(40); // 배경색 (다크 그레이)
   lights(); // 3D 조명
   
   // 1. 롱프레스(Long Press) 감지 로직
