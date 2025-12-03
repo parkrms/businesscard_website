@@ -1,201 +1,269 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Interactive Portfolio</title>
+    <title>PORTFOLIO</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
     <script src="sketch.js"></script>
     
     <style>
-      /* --- [기본 설정] --- */
+      /* --- [RESET & BASE] --- */
       * { box-sizing: border-box; margin: 0; padding: 0; }
       
       html, body {
         width: 100%; height: 100%; overflow: hidden;
-        background-color: #1a1a1a;
-        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+        background-color: #050505; /* 더 깊은 검정 */
+        /* Heliot Emil 스타일의 차갑고 세련된 폰트 스택 */
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        color: #e0e0e0;
         touch-action: none; 
         user-select: none; -webkit-user-select: none;
       }
       
       canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
+      /* 공통: 얇은 라인 스타일 */
+      .thin-border { border: 1px solid rgba(255, 255, 255, 0.15); }
+      .text-uppercase { text-transform: uppercase; letter-spacing: 2px; }
+      .font-mono { font-family: "Courier New", Courier, monospace; }
+
+      /* --- [닫기 버튼 (X)] - 최상위 고정 --- */
+      #global-close-btn {
+        position: fixed; top: 30px; right: 30px;
+        width: 50px; height: 50px;
+        z-index: 9999; /* 무조건 최상위 */
+        cursor: pointer;
+        display: none; /* 평소엔 숨김 */
+        align-items: center; justify-content: center;
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        touch-action: manipulation;
+      }
+      #global-close-btn.visible { display: flex; animation: fadeIn 0.5s ease; }
+      #global-close-btn:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.1); }
+      
+      /* X 아이콘을 얇은 선으로 직접 그림 (SVG 대신 CSS로 미니멀하게) */
+      .icon-x { position: relative; width: 14px; height: 14px; }
+      .icon-x::before, .icon-x::after {
+        content: ''; position: absolute; top: 50%; left: 50%;
+        width: 100%; height: 1px; background: #fff;
+        transform: translate(-50%, -50%) rotate(45deg);
+      }
+      .icon-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
+
       /* --- [상세 페이지 레이어] --- */
       #detail-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         z-index: 100;
         opacity: 0; pointer-events: none;
-        transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        background: rgba(0, 0, 0, 0.65);
-        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-        touch-action: auto; 
+        transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        background: rgba(5, 5, 5, 0.85); /* 아주 어두운 배경 */
+        backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+        
+        /* 스크롤 허용 */
+        touch-action: pan-y; 
         overflow-y: auto; -webkit-overflow-scrolling: touch;
       }
-
       #detail-layer.active { opacity: 1; pointer-events: auto; }
 
-      /* --- [닫기 버튼 (X 아이콘) - 위치 고정] --- */
-      /* 스크롤 영역 밖으로 분리하여 항상 고정됨 */
-      .btn-close-fixed {
-        position: fixed; top: 30px; right: 30px;
-        width: 50px; height: 50px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        cursor: pointer; z-index: 300; /* 가장 위에 */
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-        touch-action: manipulation;
-      }
-      .btn-close-fixed:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
-      .btn-close-fixed svg { width: 24px; height: 24px; fill: white; }
-
-      /* --- [콘텐츠 래퍼] --- */
+      /* 상세 컨텐츠 래퍼 */
       #content-wrapper {
-        position: relative;
         width: 100%; min-height: 100%;
-        padding: 80px 40px; 
-        display: flex; flex-direction: row; justify-content: center;
-        opacity: 0; transform: translateY(30px);
-        transition: all 0.5s ease 0.2s;
+        padding: 100px 40px; /* 닫기 버튼 공간 확보 */
+        display: flex; flex-direction: row; 
         max-width: 1400px; margin: 0 auto;
+        opacity: 0; transform: translateY(20px);
+        transition: all 0.6s ease 0.2s;
       }
       #detail-layer.active #content-wrapper { opacity: 1; transform: translateY(0); }
 
-      /* 왼쪽 섹션 */
+      /* --- [왼쪽 섹션] --- */
       .left-section { 
-        width: 40%; padding-right: 60px;
+        width: 35%; padding-right: 60px;
         display: flex; flex-direction: column; justify-content: center;
-        color: #fff; text-align: left;
-        padding-top: 300px; 
+        padding-top: 250px; /* 명함 공간 */
+        border-right: 1px solid rgba(255, 255, 255, 0.1); /* 세로 구분선 */
       }
-      .project-label { font-size: 14px; font-weight: 600; letter-spacing: 2px; color: rgba(255,255,255,0.5); margin-bottom: 15px; text-transform: uppercase; }
+      
+      .meta-data {
+        font-family: "Courier New", Courier, monospace;
+        font-size: 11px; color: #666; margin-bottom: 20px;
+        display: flex; gap: 20px;
+      }
+      .meta-data span { border: 1px solid #333; padding: 4px 8px; }
+
       .project-title { 
-        font-size: 56px; font-weight: 800; margin-bottom: 25px; line-height: 1.1; letter-spacing: -1px;
-        background: linear-gradient(to right, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        font-size: 48px; font-weight: 300; margin-bottom: 30px; 
+        line-height: 1.1; letter-spacing: -0.5px; color: #fff;
       }
-      .project-desc { font-size: 18px; line-height: 1.7; color: rgba(255,255,255,0.8); margin-bottom: 40px; max-width: 90%; }
+      .project-desc { 
+        font-size: 14px; line-height: 1.8; color: #999; font-weight: 300;
+        max-width: 90%; text-align: justify;
+      }
 
-      /* 오른쪽 섹션 */
-      .right-section { width: 60%; padding-top: 20px; }
-      .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; }
+      /* --- [오른쪽 섹션] --- */
+      .right-section { width: 65%; padding-left: 60px; padding-top: 20px; }
+
+      .grid-container { 
+        display: grid; grid-template-columns: repeat(2, 1fr); 
+        gap: 1px; /* 얇은 그리드 라인을 위해 gap 1px */
+        background-color: rgba(255, 255, 255, 0.1); /* 그리드 라인 색상 */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      
       .grid-item {
-        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 12px; height: 280px; 
-        display: flex; align-items: center; justify-content: center;
-        color: rgba(255,255,255,0.2); font-weight: 600; transition: transform 0.3s;
+        background-color: #050505; /* 배경색으로 덮어서 라인 만듬 */
+        height: 280px; 
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #444; font-size: 11px; letter-spacing: 1px;
+        transition: background 0.3s;
+        position: relative;
       }
-      .grid-item:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); }
+      .grid-item:hover { background-color: #0a0a0a; color: #fff; }
+      
+      /* 이미지 대신 텍스트로 표현된 미니멀한 콘텐츠 */
+      .item-label { 
+        position: absolute; top: 15px; left: 15px; 
+        font-family: monospace; font-size: 9px; color: #333;
+      }
+      
       .text-block { 
-        grid-column: span 2; height: auto; min-height: 200px; padding: 40px; 
-        display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-        background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        grid-column: span 2; height: auto; min-height: 180px; 
+        padding: 40px; 
+        align-items: flex-start; justify-content: center;
       }
-      .text-block h3 { color: #fff; margin-bottom: 15px; font-size: 26px; }
-      .text-block p { color: rgba(255,255,255,0.6); line-height: 1.6; font-size: 16px; }
+      .text-block h3 { 
+        font-size: 14px; font-weight: 400; color: #fff; margin-bottom: 15px; 
+        text-transform: uppercase; letter-spacing: 1px;
+      }
+      .text-block p { 
+        font-size: 13px; color: #777; line-height: 1.6; font-weight: 300; 
+      }
 
-      /* --- [? 버튼 (시인성 개선)] --- */
+      /* --- [? 버튼 (리디자인)] --- */
       #help-btn {
         position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        width: 48px; height: 48px;
-        border: 2px solid white; border-radius: 50%;
-        font-size: 24px; font-weight: 800;
+        width: 44px; height: 44px;
+        border-radius: 50%;
+        
+        /* 가우시안 블러 배경 */
+        background: rgba(20, 20, 20, 0.4);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; z-index: 50;
-        transition: transform 0.2s;
+        transition: all 0.3s ease;
         touch-action: manipulation;
-        
-        /* [핵심] 배경색에 따라 색상 반전 (흰 배경->검은 버튼, 검은 배경->흰 버튼) */
-        color: white;
-        background: transparent;
-        mix-blend-mode: difference;
       }
-      #help-btn:active { transform: translateX(-50%) scale(0.9); }
+      #help-btn span {
+        color: #fff; font-size: 14px; font-weight: 300; font-family: "Helvetica Neue", sans-serif;
+      }
+      #help-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); }
 
-      /* --- [도움말 오버레이 (디자인 개선)] --- */
+      /* --- [도움말 오버레이 (Heliot Emil 스타일)] --- */
       #help-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.4); /* 배경 살짝 어둡게 */
+        background: rgba(0, 0, 0, 0.6);
         z-index: 200;
-        display: flex; align-items: center; justify-content: center;
         opacity: 0; pointer-events: none; 
         transition: opacity 0.4s ease;
-        backdrop-filter: blur(25px); /* 전체 화면 강력한 블러 */
-        -webkit-backdrop-filter: blur(25px);
-        touch-action: auto; /* 닫기 위해 터치 가능하게 */
+        
+        /* 전체 화면 강력한 블러 */
+        backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+        
+        display: flex; align-items: center; justify-content: center;
+        touch-action: auto;
       }
       #help-overlay.show { opacity: 1; pointer-events: auto; }
       
-      /* 인스트럭션 그리드 */
-      .help-grid {
+      .instruction-container {
+        width: 100%; max-width: 800px;
+        padding: 40px;
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-        width: 100%; max-width: 600px;
-        padding: 20px;
+        grid-template-columns: repeat(4, 1fr); /* 4열로 깔끔하게 */
+        gap: 0; /* 라인으로 구분 */
+        border-top: 1px solid rgba(255,255,255,0.15);
+        border-bottom: 1px solid rgba(255,255,255,0.15);
       }
 
-      .help-item {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 40px 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        background: rgba(255, 255, 255, 0.03);
-        text-align: center;
-        color: white;
+      .inst-item {
+        display: flex; flex-direction: column; 
+        height: 180px;
+        padding: 30px 20px;
+        border-right: 1px solid rgba(255,255,255,0.15);
+        color: #fff;
+        position: relative;
+        justify-content: space-between;
       }
-      
-      .icon-box {
-        font-size: 40px; margin-bottom: 20px;
-        width: 80px; height: 80px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
+      .inst-item:first-child { border-left: 1px solid rgba(255,255,255,0.15); }
+
+      .inst-label {
+        font-family: "Courier New", monospace;
+        font-size: 10px; color: #555; text-transform: uppercase;
       }
-      
-      .action-name { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase; }
-      .action-desc { font-size: 20px; font-weight: 700; }
+      .inst-action {
+        font-size: 14px; font-weight: 400; letter-spacing: 1px; text-transform: uppercase;
+      }
+      .inst-icon {
+        font-size: 24px; font-weight: 100; opacity: 0.8;
+        /* 이모티콘 대신 텍스트 심볼이나 SVG 느낌 */
+        font-family: sans-serif; 
+      }
 
       /* --- [모바일 반응형] --- */
       @media (max-width: 900px) {
-        /* 상세페이지 */
-        #content-wrapper { flex-direction: column; padding: 100px 24px 40px 24px; }
+        #content-wrapper { flex-direction: column; padding: 80px 20px 40px 20px; }
         
-        .btn-close-fixed { top: 20px; right: 20px; width: 44px; height: 44px; } /* 위치 고정됨 */
+        .left-section { 
+          width: 100%; padding-right: 0; padding-top: 180px; 
+          border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding-bottom: 40px; margin-bottom: 40px;
+        }
+        .project-title { font-size: 32px; }
+        .project-desc { max-width: 100%; font-size: 13px; }
         
-        .left-section { width: 100%; padding-right: 0; padding-top: 220px; text-align: left; margin-bottom: 40px; }
-        .project-title { font-size: 36px; }
-        .right-section { width: 100%; }
-        .grid-container { grid-template-columns: 1fr; gap: 20px; }
-        .text-block { grid-column: span 1; padding: 25px; }
+        .right-section { width: 100%; padding-left: 0; padding-top: 0; }
+        .grid-container { grid-template-columns: 1fr; } /* 모바일 1열 */
+        .text-block { grid-column: span 1; padding: 30px 20px; }
 
-        /* 도움말 */
-        .help-grid { grid-template-columns: 1fr; gap: 15px; max-width: 320px; }
-        .help-item { flex-direction: row; padding: 20px; justify-content: flex-start; text-align: left; }
-        .icon-box { width: 50px; height: 50px; font-size: 24px; margin-bottom: 0; margin-right: 20px; flex-shrink: 0; }
-        .help-text-group { display: flex; flex-direction: column; }
-        .action-name { font-size: 12px; margin-bottom: 2px; }
-        .action-desc { font-size: 18px; }
+        /* 도움말 모바일 */
+        .instruction-container { 
+          grid-template-columns: 1fr 1fr; /* 2열 */
+          border: none;
+          gap: 15px;
+        }
+        .inst-item { 
+          height: 140px; 
+          border: 1px solid rgba(255,255,255,0.15); /* 박스 형태로 변경 */
+        }
       }
     </style>
   </head>
   <body>
-    <div id="detail-layer">
-      <button class="btn-close-fixed" onclick="closeDetail()">
-        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-      </button>
+    <div id="global-close-btn" onclick="closeDetail()">
+      <div class="icon-x"></div>
+    </div>
 
+    <div id="detail-layer">
       <div id="content-wrapper">
         <div class="left-section">
-          <div class="project-label">Interaction Design</div>
+          <div class="meta-data">
+            <span>INDEX.01</span>
+            <span>WEBGL</span>
+            <span>2025</span>
+          </div>
           <div class="project-title">DIGITAL<br>WEATHERING</div>
           <div class="project-desc">
-            시간의 흐름에 따라 데이터가 남기는 흔적을 시각화했습니다.<br>
-            사용자의 터치와 움직임이 물리적인 힘이 되어<br>
-            디지털 공간 속 명함에 고유한 풍화를 일으킵니다.
+            This project visualizes the traces left by data over time.<br>
+            User interactions become physical forces—wind and pressure—<br>
+            creating digital erosion on the object.
           </div>
         </div>
         
@@ -203,60 +271,76 @@
           <div class="grid-container">
             <div class="grid-item text-block">
               <h3>Design Process</h3>
-              <p>초기 스케치부터 최종 렌더링까지의 과정을 기록했습니다. 물리 엔진의 변수(마찰력, 중력)를 수백 번 테스트하며 최적의 자연스러움을 찾았습니다.</p>
+              <p>Recorded the process from initial sketches to final rendering. Optimized natural movement by testing physics variables (friction, gravity) hundreds of times.</p>
             </div>
-            <div class="grid-item">Concept Art 01</div>
-            <div class="grid-item">Prototype A</div>
-            <div class="grid-item">Prototype B</div>
-            <div class="grid-item">Final Render</div>
+            <div class="grid-item">
+              <span class="item-label">FIG. 01</span>
+              CONCEPT ART
+            </div>
+            <div class="grid-item">
+              <span class="item-label">FIG. 02</span>
+              PROTOTYPE A
+            </div>
+            <div class="grid-item">
+              <span class="item-label">FIG. 03</span>
+              PROTOTYPE B
+            </div>
+            <div class="grid-item">
+              <span class="item-label">FIG. 04</span>
+              FINAL RENDER
+            </div>
             <div class="grid-item text-block">
               <h3>Tech Stack</h3>
-              <p>Built with p5.js & WebGL.<br>Optimized for Mobile & Desktop.</p>
+              <p>p5.js / WebGL / GLSL Shader<br>Custom Physics Engine<br>Responsive Layout</p>
             </div>
-            <div class="grid-item">Code Snippet</div>
+            <div class="grid-item">
+              <span class="item-label">SRC. 01</span>
+              CODE SNIPPET
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div id="help-btn">?</div>
+    <div id="help-btn">
+      <span>?</span>
+    </div>
 
     <div id="help-overlay">
-      <div class="help-grid" id="help-grid-content">
+      <div class="instruction-container" id="inst-container">
         </div>
     </div>
 
     <script>
       const helpBtn = document.getElementById('help-btn');
       const helpOverlay = document.getElementById('help-overlay');
-      const helpGrid = document.getElementById('help-grid-content');
+      const instContainer = document.getElementById('inst-container');
+      const globalCloseBtn = document.getElementById('global-close-btn');
 
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-      // 인스트럭션 데이터
-      const pcInstructions = [
-        { icon: '🖱', name: 'Drag', desc: 'Move Card' },
-        { icon: '👆', name: 'Click', desc: 'Flip Card' },
-        { icon: '⏱', name: 'Hold (1.5s)', desc: 'Detail View' },
-        { icon: '💨', name: 'Shake Mouse', desc: 'Mix Cards' }
+      // 인스트럭션 데이터 (이모티콘 제거, 미니멀 스타일)
+      const pcInst = [
+        { label: 'MOVE', action: 'DRAG', icon: '↔' },
+        { label: 'FLIP', action: 'CLICK', icon: '●' },
+        { label: 'DETAIL', action: 'HOLD (1.5s)', icon: '◎' },
+        { label: 'MIX', action: 'SHAKE', icon: '〰' }
       ];
 
-      const mobileInstructions = [
-        { icon: '👆', name: 'Drag', desc: 'Move Card' },
-        { icon: '👆', name: 'Tap', desc: 'Flip Card' },
-        { icon: '⏱', name: 'Hold (1s)', desc: 'Detail View' },
-        { icon: '📱', name: 'Shake Device', desc: 'Mix Cards' }
+      const mobileInst = [
+        { label: 'MOVE', action: 'DRAG', icon: '↔' },
+        { label: 'FLIP', action: 'TAP', icon: '●' },
+        { label: 'DETAIL', action: 'HOLD (1s)', icon: '◎' },
+        { label: 'MIX', action: 'SHAKE DEVICE', icon: '📱' }
       ];
 
       function renderHelp() {
-        const data = isMobile ? mobileInstructions : pcInstructions;
-        helpGrid.innerHTML = data.map(item => `
-          <div class="help-item">
-            <div class="icon-box">${item.icon}</div>
-            <div class="help-text-group">
-              <div class="action-name">${item.name}</div>
-              <div class="action-desc">${item.desc}</div>
-            </div>
+        const data = isMobile ? mobileInst : pcInst;
+        instContainer.innerHTML = data.map(item => `
+          <div class="inst-item">
+            <div class="inst-label">${item.label}</div>
+            <div class="inst-icon">${item.icon}</div>
+            <div class="inst-action">${item.action}</div>
           </div>
         `).join('');
       }
@@ -265,21 +349,28 @@
         e.stopPropagation();
         renderHelp();
         
-        // 모바일 흔들기 권한 요청
         if (isMobile && typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-          DeviceMotionEvent.requestPermission()
-            .then(response => { if (response === 'granted') console.log('Motion granted'); })
-            .catch(console.error);
+          DeviceMotionEvent.requestPermission().catch(console.error);
         }
         
         helpOverlay.classList.add('show');
       });
 
-      // 오버레이 클릭 시 닫기
       helpOverlay.addEventListener('click', (e) => {
         e.stopPropagation();
         helpOverlay.classList.remove('show');
       });
+
+      // 전역 닫기 버튼 로직 연결
+      // sketch.js의 triggerDetailMode에서 이 버튼을 보이게 하고,
+      // closeDetail에서 숨기게 처리해야 함.
+      // sketch.js 로드 후 실행되므로 window 객체에 연결
+      
+      // 원래 sketch.js의 triggerDetailMode를 덮어쓰거나 
+      // sketch.js 내부를 수정해야 하지만, 
+      // 여기서는 HTML 내 스크립트에서 Observer 패턴처럼 처리하기 어려우므로
+      // sketch.js에서 document.getElementById('global-close-btn')을 직접 제어하도록 함.
+      
     </script>
   </body>
 </html>
