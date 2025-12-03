@@ -14,15 +14,19 @@ let backColors = [];
 let currentCard = null;
 let pressStartTime;
 
+// 마우스(PC) 흔들기 설정
 let mouseSpeedThreshold = 360.0; 
 let shakeRadius; 
+
+// [NEW] 모바일 감지 변수
+let isMobileDevice = false;
 
 let lastReleaseTime = 0;
 let lastShakeTime = 0;
 
 let holdStartTime = 0;
 let isHolding = false;
-let holdDuration = 1500; 
+let holdDuration = 1500; // 기본값 (setup에서 변경됨)
 let appMode = 'NORMAL'; 
 let focusedCard = null; 
 
@@ -38,9 +42,22 @@ function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL);
   noStroke();
   
+  // [NEW] 모바일 여부 체크
+  // User Agent 체크 또는 화면 너비가 좁으면 모바일로 간주
+  isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
+
+  // [NEW] 롱프레스 시간 설정
+  if (isMobileDevice) {
+    holdDuration = 1000; // 모바일 1초
+    // 모바일 흔들기 민감도 설정 (p5.js 내장 함수)
+    setShakeThreshold(30); 
+  } else {
+    holdDuration = 1500; // PC 1.5초
+  }
+
   calculateCardDimensions();
   
-  // [수정] 그림자 텍스처 강화 (더 진하게)
+  // 그림자 텍스처 생성
   let shadowTextureWidth = cardW * 1.5; 
   let shadowTextureHeight = cardH * 1.5; 
   
@@ -48,16 +65,12 @@ function setup() {
   shadowTexture.noStroke();
   shadowTexture.rectMode(CENTER); 
   
-  // 40단계로 늘려 더 부드럽고 진하게
   for(let i = 40; i > 0; i -= 1) { 
-    // alpha를 255(최대)까지 올려서 진한 그림자 생성
     let alpha = map(i, 40, 0, 0, 255); 
     alpha = pow(alpha / 255, 2.0) * 255; 
     shadowTexture.fill(0, 0, 0, alpha);
-    
     let currentW = shadowTextureWidth * (i / 40);
     let currentH = shadowTextureHeight * (i / 40);
-    
     shadowTexture.rect(shadowTexture.width/2, shadowTexture.height/2, currentW, currentH, 15); 
   }
 
@@ -74,7 +87,9 @@ function setup() {
 }
 
 function calculateCardDimensions() {
-  cardW = constrain(windowWidth * 0.25, 220, 550); 
+  // 모바일이면 카드를 조금 더 크게 보이게 비율 조정
+  let ratio = isMobileDevice ? 0.6 : 0.25;
+  cardW = constrain(windowWidth * ratio, 220, 550); 
   cardH = cardW * (50 / 90); 
   shakeRadius = cardW * 0.8; 
 }
@@ -124,6 +139,32 @@ function draw() {
   }
 }
 
+// [NEW] p5.js 내장 흔들기 감지 함수 (모바일용)
+function deviceShaken() {
+  if (appMode === 'DETAIL') return;
+  if (millis() - lastReleaseTime < 200) return;
+
+  // 흔들림 감지 시 모든 카드를 섞음
+  lastShakeTime = millis();
+  
+  for (let i = 0; i < cards.length; i++) {
+    let card = cards[i];
+    
+    // 모바일은 마우스 위치가 없으므로 화면 중앙에서 퍼지는 힘 + 랜덤성
+    // 또는 그냥 랜덤 방향으로 튀게 함
+    let randomAngle = random(TWO_PI);
+    let forceMag = random(10, 20); // 흔들림 강도
+    
+    let forceX = cos(randomAngle) * forceMag;
+    let forceY = sin(randomAngle) * forceMag;
+    
+    // 회전력 추가
+    let randomSpin = random(-0.2, 0.2); 
+    
+    card.applyForce(forceX, forceY, randomSpin);
+  }
+}
+
 function triggerDetailMode(card) {
   appMode = 'DETAIL';
   isHolding = false;
@@ -136,6 +177,7 @@ function triggerDetailMode(card) {
   htmlCard.style.width = card.w + 'px'; 
   htmlCard.style.height = card.h + 'px';
   
+  // 모바일에서도 좌표 보정 정확히
   let p5X_global = card.x + width/2; 
   let p5Y_global = card.y + height/2;
   htmlCard.style.left = p5X_global + 'px';
@@ -144,7 +186,6 @@ function triggerDetailMode(card) {
   document.getElementById('detail-layer').classList.add('active');
 }
 
-// [수정] 돌아가기 함수
 window.closeDetail = function() {
   let layer = document.getElementById('detail-layer');
   let htmlCard = document.getElementById('html-card');
@@ -155,7 +196,6 @@ window.closeDetail = function() {
     htmlCard.style.left = p5X_global + 'px';
     htmlCard.style.top = p5Y_global + 'px';
     
-    // [핵심 수정] 뒷면(180deg) 상태 유지하며 복귀
     htmlCard.style.transform = `translate(-50%, -50%) rotateY(180deg)`;
     htmlCard.style.boxShadow = `0 0 0 rgba(0,0,0,0)`;
   }
@@ -165,8 +205,6 @@ window.closeDetail = function() {
   setTimeout(() => {
     appMode = 'NORMAL';
     if (focusedCard) {
-      // [핵심 수정] flip() 함수 호출 삭제 -> 뒷면 상태 유지
-      // focusedCard.flip();  <-- 삭제됨
       focusedCard = null;
     }
     htmlCard.style.left = '50%';
@@ -227,7 +265,9 @@ function mouseReleased() {
   }
 }
 
+// [수정] PC에서만 마우스 흔들기 작동
 function mouseMoved() {
+  if (isMobileDevice) return; // 모바일이면 마우스 흔들기 무시 (deviceShaken 사용)
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
 
@@ -262,6 +302,8 @@ function mouseMoved() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  // 리사이즈 시 모바일 여부 재확인
+  isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
   calculateCardDimensions(); 
   for (let card of cards) {
     card.w = cardW;
@@ -277,7 +319,7 @@ function lerpAngle(from, to, amt) {
 }
 
 
-// 5. BusinessCard 클래스
+// 5. BusinessCard 클래스 (동일)
 class BusinessCard {
   constructor(tempX, tempY, tempAngle, tempBackColor) {
     this.x = tempX;
@@ -329,10 +371,15 @@ class BusinessCard {
       this.velY *= this.damping;
       this.angleVel *= this.angleDamping;
 
-      if (this.x < -width/2 + this.w/2) { this.x = -width/2 + this.w/2; this.velX *= -0.5; }
-      if (this.x > width/2 - this.w/2) { this.x = width/2 - this.w/2; this.velX *= -0.5; }
-      if (this.y < -height/2 + this.h/2) { this.y = -height/2 + this.h/2; this.velY *= -0.5; }
-      if (this.y > height/2 - this.h/2) { this.y = height/2 - this.h/2; this.velY *= -0.5; }
+      // 화면 바운스 (화면 밖으로 나가지 않게)
+      // 모바일에서 리사이즈 시 갇히는 문제 방지 위해 w, h 동적 참조
+      let boundW = width/2 - this.w/2;
+      let boundH = height/2 - this.h/2;
+      
+      if (this.x < -boundW) { this.x = -boundW; this.velX *= -0.5; }
+      if (this.x > boundW) { this.x = boundW; this.velX *= -0.5; }
+      if (this.y < -boundH) { this.y = -boundH; this.velY *= -0.5; }
+      if (this.y > boundH) { this.y = boundH; this.velY *= -0.5; }
     }
 
     if (this.isFlipping) {
@@ -354,23 +401,19 @@ class BusinessCard {
 
   display() {
     push();
-    
     translate(this.x, this.y, this.z);
     rotate(this.angle);
 
-    // [수정] 롱프레스 그림자 확장 애니메이션
+    // 롱프레스 그림자 확장 애니메이션
     if (appMode === 'NORMAL' && isHolding && currentCard === this && abs(this.flipAngle - PI) < 0.2) {
       let holdProgress = constrain((millis() - holdStartTime) / holdDuration, 0, 1);
       let ease = holdProgress * holdProgress; 
-      
-      // [수정] 그림자 확장: 정확히 1.0(카드크기)에서 시작해 1.15(확장)로
       let shadowScale = map(ease, 0, 1, 1.0, 1.15);
       
       push();
       translate(0, 0, -2); 
-      scale(shadowScale); // 스케일 적용
+      scale(shadowScale); 
       imageMode(CENTER);
-      // 텍스처 이미지가 이미 투명도 그라데이션을 가지고 있으므로 tint 없이 바로 그림
       image(shadowTexture, 0, 0, this.w, this.h); 
       pop();
     }
