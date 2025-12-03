@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Portfolio</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
@@ -13,9 +13,11 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       
       html, body {
-        width: 100%; height: 100%; overflow: hidden;
+        width: 100%; 
+        /* [수정] dvh 단위 사용으로 모바일 주소창 영역 대응 */
+        height: 100%; height: 100dvh; 
+        overflow: hidden;
         background-color: #050505; 
-        /* 시스템 기본 서체 사용 (가장 깔끔함) */
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         color: #e0e0e0;
         touch-action: none; 
@@ -26,13 +28,14 @@
 
       /* --- [닫기 버튼 (X)] --- */
       #global-close-btn {
-        position: fixed; top: 30px; right: 30px;
+        /* [수정] 노치 영역(safe-area) 고려한 위치 조정 */
+        position: fixed; top: max(30px, env(safe-area-inset-top) + 10px); right: max(30px, env(safe-area-inset-right) + 10px);
         width: 50px; height: 50px;
         z-index: 9999;
         cursor: pointer;
         display: none; 
         align-items: center; justify-content: center;
-        background: rgba(255, 255, 255, 0.1); /* 아주 연한 배경 */
+        background: rgba(255, 255, 255, 0.1); 
         backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
         border-radius: 50%;
         transition: all 0.3s ease;
@@ -44,7 +47,7 @@
       .icon-x { position: relative; width: 14px; height: 14px; }
       .icon-x::before, .icon-x::after {
         content: ''; position: absolute; top: 50%; left: 50%;
-        width: 100%; height: 1.5px; /* 선 두께 약간 조정 */
+        width: 100%; height: 1.5px; 
         background: #fff;
         transform: translate(-50%, -50%) rotate(45deg);
       }
@@ -52,14 +55,17 @@
 
       /* --- [상세 페이지 레이어] --- */
       #detail-layer {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: 100dvh;
         z-index: 100;
         opacity: 0; pointer-events: none;
         transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        background: rgba(0, 0, 0, 0.85); /* 배경 더 진하게 */
+        background: rgba(0, 0, 0, 0.85); 
         backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
         touch-action: pan-y; 
         overflow-y: auto; -webkit-overflow-scrolling: touch;
+        
+        /* 아이폰 하단 바 영역 패딩 */
+        padding-bottom: env(safe-area-inset-bottom);
       }
       #detail-layer.active { opacity: 1; pointer-events: auto; }
 
@@ -67,6 +73,7 @@
       #content-wrapper {
         width: 100%; min-height: 100%;
         padding: 100px 40px; 
+        padding-top: max(100px, env(safe-area-inset-top) + 60px); /* 노치 대응 */
         display: flex; flex-direction: row; 
         max-width: 1400px; margin: 0 auto;
         opacity: 0; transform: translateY(20px);
@@ -86,13 +93,12 @@
         font-size: 13px; color: #666; margin-bottom: 20px;
         display: flex; gap: 20px; font-weight: 500;
       }
-      /* 대문자 강제 제거 -> 첫글자만 대문자로 */
       .meta-data span { text-transform: capitalize; }
 
       .project-title { 
         font-size: 48px; font-weight: 700; margin-bottom: 30px; 
         line-height: 1.1; letter-spacing: -0.5px; color: #fff;
-        text-transform: capitalize; /* 첫글자만 대문자 */
+        text-transform: capitalize; 
       }
       .project-desc { 
         font-size: 16px; line-height: 1.7; color: #999; font-weight: 400;
@@ -104,7 +110,7 @@
 
       .grid-container { 
         display: grid; grid-template-columns: repeat(2, 1fr); 
-        gap: 20px; /* 라인 대신 여백으로 깔끔하게 */
+        gap: 20px; 
       }
       
       .grid-item {
@@ -139,64 +145,66 @@
         font-size: 15px; color: #888; line-height: 1.6; font-weight: 400; 
       }
 
-      /* --- [? 버튼 (블러리 & 외곽선 제거)] --- */
+      /* --- [? 버튼] --- */
       #help-btn {
-        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+        /* 하단 안전 영역 고려 */
+        position: fixed; bottom: max(30px, env(safe-area-inset-bottom) + 10px); left: 50%; transform: translateX(-50%);
         width: 50px; height: 50px;
         border-radius: 50%;
         
-        /* 외곽선 제거 및 블러 강조 */
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        border: none; /* 외곽선 제거 */
+        border: none; 
         
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; z-index: 50;
         transition: all 0.3s ease;
         touch-action: manipulation;
         
-        color: white; /* 텍스트는 항상 흰색 (블렌드 모드 대신 명확성 선택) */
+        color: white; 
         font-size: 20px; font-weight: 400;
       }
       #help-btn:active { transform: translateX(-50%) scale(0.95); background: rgba(255, 255, 255, 0.2); }
 
-      /* --- [도움말 오버레이 (미니멀)] --- */
+      /* --- [도움말 오버레이 (수정됨)] --- */
       #help-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.85); /* 배경 아주 진하게 */
+        background: rgba(0, 0, 0, 0.4); /* 배경색 투명도 조절 */
         z-index: 200;
         opacity: 0; pointer-events: none; 
         transition: opacity 0.4s ease;
         
-        backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+        /* [수정] 블러 대폭 축소 (40px -> 8px) 뒤에 명함 보이게 */
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
         
         display: flex; align-items: center; justify-content: center;
         touch-action: auto;
       }
       #help-overlay.show { opacity: 1; pointer-events: auto; }
       
-      /* 인스트럭션 컨테이너 */
       .instruction-container {
         display: flex;
-        flex-direction: row; /* PC: 가로 배치 */
-        gap: 60px; /* 간격 넓게 */
+        flex-direction: row; 
+        gap: 60px; 
         align-items: center; justify-content: center;
       }
 
       .inst-item {
         color: #fff;
-        font-size: 24px; /* 글자 큼직하게 */
-        font-weight: 300; /* 얇은 폰트 */
-        letter-spacing: 1px;
-        opacity: 0.8;
+        /* [수정] 폰트 크기 축소 (PC) */
+        font-size: 16px; 
+        font-weight: 400; 
+        letter-spacing: 0.5px;
+        opacity: 0.9;
         transition: opacity 0.3s;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5); /* 잘 보이게 그림자 추가 */
       }
       .inst-item:hover { opacity: 1; }
 
       /* --- [모바일 반응형] --- */
       @media (max-width: 900px) {
-        #content-wrapper { flex-direction: column; padding: 100px 24px 60px 24px; }
+        #content-wrapper { padding: 100px 24px 60px 24px; padding-top: max(80px, env(safe-area-inset-top) + 40px); }
         
         .left-section { 
           width: 100%; padding-right: 0; padding-top: 200px; 
@@ -210,12 +218,13 @@
         .grid-container { grid-template-columns: 1fr; }
         .text-block { grid-column: span 1; padding: 30px 20px; }
 
-        /* 도움말 모바일: 세로 배치 */
+        /* 도움말 모바일 */
         .instruction-container { 
-          flex-direction: column; /* 모바일: 세로 배치 */
-          gap: 40px;
+          flex-direction: column; 
+          gap: 30px;
         }
-        .inst-item { font-size: 28px; font-weight: 300; }
+        /* [수정] 폰트 크기 대폭 축소 (모바일) */
+        .inst-item { font-size: 14px; font-weight: 400; }
       }
     </style>
   </head>
@@ -246,18 +255,9 @@
               <h3>Design Process</h3>
               <p>Recorded the process from initial sketches to final rendering. Optimized natural movement by testing physics variables (friction, gravity) hundreds of times.</p>
             </div>
-            <div class="grid-item">
-              <span class="item-label">Fig. 01</span>
-              Concept Art
-            </div>
-            <div class="grid-item">
-              <span class="item-label">Fig. 02</span>
-              Prototype A
-            </div>
-            <div class="grid-item">
-              <span class="item-label">Fig. 03</span>
-              Final Render
-            </div>
+            <div class="grid-item"><span class="item-label">Fig. 01</span>Concept Art</div>
+            <div class="grid-item"><span class="item-label">Fig. 02</span>Prototype A</div>
+            <div class="grid-item"><span class="item-label">Fig. 03</span>Final Render</div>
             <div class="grid-item text-block">
               <h3>Tech Stack</h3>
               <p>p5.js / WebGL / GLSL Shader<br>Custom Physics Engine</p>
@@ -281,9 +281,6 @@
 
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-      // 텍스트 데이터 (단어만, Title Case)
-      // PC: Drag Shake Click Hold
-      // Mobile: Drag Shake Tap Hold
       const pcWords = ['Drag', 'Shake', 'Click', 'Hold'];
       const mobileWords = ['Drag', 'Shake', 'Tap', 'Hold'];
 
@@ -297,12 +294,9 @@
       helpBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         renderHelp();
-        
-        // 모바일 권한 요청
         if (isMobile && typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
           DeviceMotionEvent.requestPermission().catch(console.error);
         }
-        
         helpOverlay.classList.add('show');
       });
 
