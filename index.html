@@ -2,7 +2,7 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Interactive Portfolio</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
@@ -10,10 +10,15 @@
     
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
+      
+      /* [핵심] 모바일 터치 제스처(스크롤 등) 막기 */
       html, body {
         width: 100%; height: 100%; overflow: hidden;
         background-color: #222;
         font-family: -apple-system, BlinkMacSystemFont, "Pretendard", Roboto, sans-serif;
+        touch-action: none; /* 터치 스크롤 방지 */
+        user-select: none; /* 텍스트 선택 방지 */
+        -webkit-user-select: none;
       }
       canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
@@ -35,9 +40,7 @@
         width: 450px; height: 250px;
         background-size: cover; background-position: center;
         border-radius: 0;
-        /* 초기 그림자 없음 */
         box-shadow: 0 0 0 rgba(0,0,0,0); 
-        
         transform: translate(-50%, -50%) rotateY(180deg);
         transform-style: preserve-3d;
         transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
@@ -45,12 +48,18 @@
 
       #detail-layer.active #html-card {
         top: 60px !important; left: 60px !important;
-        /* 왼쪽 위로 갈 때도 뒷면(180deg) 유지 */
         transform: translate(0, 0) rotateY(180deg) !important;
-        
-        /* HTML 상태에서의 그림자 (p5 그림자와 자연스럽게 연결) */
         box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 
                     0 10px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      /* 모바일 레이아웃 대응 */
+      @media (max-width: 768px) {
+        #detail-layer.active #html-card {
+          /* 모바일에서는 카드가 위쪽에 더 붙게 */
+          top: 30px !important; left: 50% !important;
+          transform: translate(-50%, 0) rotateY(180deg) !important;
+        }
       }
 
       #content-wrapper {
@@ -61,10 +70,59 @@
       }
       #detail-layer.active #content-wrapper { opacity: 1; transform: translateY(0); }
 
+      /* [NEW] ? 버튼 스타일 */
+      #help-btn {
+        position: fixed;
+        bottom: 30px; left: 50%;
+        transform: translateX(-50%);
+        width: 40px; height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+        color: white;
+        font-size: 20px; font-weight: bold;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; z-index: 20;
+        backdrop-filter: blur(5px);
+        transition: background 0.3s;
+      }
+      #help-btn:hover { background: rgba(255, 255, 255, 0.4); }
+
+      /* [NEW] 도움말 모달 */
+      #help-modal {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 30;
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.3s;
+        backdrop-filter: blur(5px);
+      }
+      #help-modal.show { opacity: 1; pointer-events: auto; }
+      
+      .modal-box {
+        background: #222;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        color: white;
+        max-width: 80%;
+      }
+      .modal-box h3 { margin-bottom: 15px; font-size: 20px; }
+      .modal-box p { line-height: 1.6; opacity: 0.8; margin-bottom: 20px; }
+      .close-help {
+        padding: 8px 20px;
+        background: white; color: black;
+        border: none; border-radius: 20px;
+        font-weight: bold; cursor: pointer;
+      }
+
+      /* 기존 레이아웃 CSS 유지 */
       .left-section { width: 450px; flex-shrink: 0; margin-top: 270px; color: #fff; }
       .project-title { font-size: 32px; font-weight: 700; margin-bottom: 10px; }
       .project-desc { font-size: 16px; line-height: 1.6; opacity: 0.8; }
-      
       .btn-close {
         margin-top: 30px; padding: 10px 20px;
         border: 1px solid rgba(255,255,255,0.3);
@@ -72,12 +130,10 @@
         transition: background 0.3s;
       }
       .btn-close:hover { background: rgba(255,255,255,0.1); }
-
       .right-section { flex-grow: 1; margin-left: 60px; height: 100%; overflow-y: auto; padding-right: 20px; }
       .right-section::-webkit-scrollbar { width: 8px; }
       .right-section::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
       .right-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-
       .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
       .grid-item {
         background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
@@ -88,6 +144,14 @@
       .text-block { grid-column: 1 / -1; height: auto; padding: 30px; text-align: left; display: block; }
       .text-block h3 { color: #fff; margin-bottom: 10px; }
       .text-block p { color: rgba(255,255,255,0.7); line-height: 1.5; }
+
+      /* 모바일 반응형 */
+      @media (max-width: 850px) {
+        #content-wrapper { flex-direction: column; padding: 20px; overflow-y: auto; }
+        .left-section { width: 100%; margin-top: 250px; margin-bottom: 40px; }
+        .right-section { width: 100%; margin-left: 0; padding-right: 0; overflow: visible; }
+        .grid-container { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body>
@@ -112,16 +176,56 @@
             </div>
             <div class="grid-item">Concept Art 01</div>
             <div class="grid-item">Prototype A</div>
-            <div class="grid-item">Prototype B</div>
             <div class="grid-item">Final Render</div>
-            <div class="grid-item text-block">
-              <h3>Technical Note</h3>
-              <p>p5.js, WebGL, GLSL Shader 활용</p>
-            </div>
-            <div class="grid-item">Code Snippet</div>
           </div>
         </div>
       </div>
     </div>
+
+    <div id="help-btn">?</div>
+
+    <div id="help-modal">
+      <div class="modal-box">
+        <h3>How to Interact</h3>
+        <p id="help-text">설명 텍스트 로딩중...</p>
+        <button class="close-help">확인</button>
+      </div>
+    </div>
+
+    <script>
+      // 도움말 로직 (sketch.js 로드 전 실행)
+      const helpBtn = document.getElementById('help-btn');
+      const helpModal = document.getElementById('help-modal');
+      const helpText = document.getElementById('help-text');
+      const closeHelp = document.querySelector('.close-help');
+
+      // 모바일 감지 (간단한 정규식)
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      helpBtn.addEventListener('click', () => {
+        // 텍스트 설정
+        if (isMobile) {
+          helpText.innerHTML = "👆 <b>드래그:</b> 명함 이동<br>👆 <b>터치:</b> 뒤집기<br>⏱ <b>1초 꾹:</b> 상세 보기<br>📱 <b>휴대폰 흔들기:</b> 명함 섞기";
+          
+          // [중요] iOS 13+ 흔들기 권한 요청
+          if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+              .then(response => {
+                if (response === 'granted') {
+                  console.log('흔들기 권한 허용됨');
+                }
+              })
+              .catch(console.error);
+          }
+        } else {
+          helpText.innerHTML = "🖱 <b>드래그:</b> 명함 이동<br>🖱 <b>클릭:</b> 뒤집기<br>⏱ <b>1.5초 꾹:</b> 상세 보기<br>💨 <b>마우스 흔들기:</b> 명함 섞기";
+        }
+        helpModal.classList.add('show');
+      });
+
+      closeHelp.addEventListener('click', () => {
+        helpModal.classList.remove('show');
+      });
+    </script>
   </body>
 </html>
