@@ -9,178 +9,220 @@
     <script src="sketch.js"></script>
     
     <style>
+      /* --- [기본 설정] --- */
       * { box-sizing: border-box; margin: 0; padding: 0; }
       
       html, body {
         width: 100%; height: 100%; overflow: hidden;
-        background-color: #222;
-        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", Roboto, sans-serif;
-        /* p5.js 캔버스 외의 요소(오버레이 등)에서는 터치 동작 허용 */
-        touch-action: manipulation; 
-        user-select: none;
-        -webkit-user-select: none;
+        background-color: #1a1a1a;
+        font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+        /* 기본적으로 터치 제스처 막음 (p5.js 조작 위해) */
+        touch-action: none; 
+        user-select: none; -webkit-user-select: none;
       }
       
       canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
-      /* 상세 정보 레이어 */
+      /* --- [상세 페이지 레이어] --- */
       #detail-layer {
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        z-index: 10;
-        opacity: 0; pointer-events: none; /* 평소엔 클릭 통과 */
-        transition: opacity 0.4s ease;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 100;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        background: rgba(0, 0, 0, 0.65); /* 배경 조금 더 어둡게 */
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        
+        /* [중요] 상세 페이지에서는 터치/스크롤 허용 */
+        touch-action: auto; 
+        overflow-y: auto; /* 전체 페이지 스크롤 허용 */
+        -webkit-overflow-scrolling: touch;
       }
 
-      #detail-layer.active { 
-        opacity: 1; 
-        pointer-events: auto; /* 활성화되면 클릭/스크롤 가능 */
-      }
+      #detail-layer.active { opacity: 1; pointer-events: auto; }
 
-      /* 콘텐츠 래퍼 */
+      /* --- [콘텐츠 래퍼] --- */
       #content-wrapper {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        padding: 60px; display: flex;
-        opacity: 0; transform: translateY(20px);
-        transition: all 0.5s ease 0.1s;
+        position: relative;
+        width: 100%; min-height: 100%;
+        padding: 80px 40px; /* 상하좌우 여백 */
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        opacity: 0; transform: translateY(30px);
+        transition: all 0.5s ease 0.2s;
+        max-width: 1400px; margin: 0 auto;
       }
       #detail-layer.active #content-wrapper { opacity: 1; transform: translateY(0); }
 
-      /* 왼쪽 섹션 (명함 이미지 제거됨) */
+      /* --- [닫기 버튼 (X 아이콘)] --- */
+      .btn-close-icon {
+        position: fixed; top: 30px; right: 30px;
+        width: 50px; height: 50px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        cursor: pointer; z-index: 200;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        /* 닫기 버튼은 항상 터치 가능해야 함 */
+        touch-action: manipulation; 
+      }
+      .btn-close-icon:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
+      .btn-close-icon svg { width: 24px; height: 24px; fill: white; }
+
+      /* --- [왼쪽 섹션: 프로젝트 정보] --- */
       .left-section { 
-        width: 400px; flex-shrink: 0; 
-        /* 중앙 정렬로 변경 */
+        width: 40%; padding-right: 60px;
         display: flex; flex-direction: column; justify-content: center;
-        color: #fff; 
-        padding-right: 40px;
+        color: #fff; text-align: left;
+        /* 명함이 들어올 자리 확보 (투명 박스) */
+        padding-top: 300px; 
       }
       
-      .project-title { font-size: 42px; font-weight: 800; margin-bottom: 20px; line-height: 1.1; }
-      .project-desc { font-size: 16px; line-height: 1.7; opacity: 0.8; margin-bottom: 40px; }
-      
-      .btn-close {
-        padding: 12px 30px;
-        width: fit-content;
-        border: 1px solid rgba(255,255,255,0.3);
-        background: rgba(255,255,255,0.05); color: white; cursor: pointer;
-        font-size: 14px; font-weight: bold;
-        transition: background 0.3s;
-        border-radius: 30px;
+      .project-label {
+        font-size: 14px; font-weight: 600; letter-spacing: 2px;
+        color: rgba(255,255,255,0.5); margin-bottom: 15px; text-transform: uppercase;
       }
-      .btn-close:hover { background: rgba(255,255,255,0.2); }
+      .project-title { 
+        font-size: 56px; font-weight: 800; margin-bottom: 25px; 
+        line-height: 1.1; letter-spacing: -1px;
+        background: linear-gradient(to right, #fff, #aaa);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      .project-desc { 
+        font-size: 18px; line-height: 1.7; color: rgba(255,255,255,0.8); 
+        margin-bottom: 40px; max-width: 90%;
+      }
 
-      /* 오른쪽 섹션 (스크롤 영역) */
-      .right-section { 
-        flex-grow: 1; 
-        height: 100%; 
-        overflow-y: auto; /* 스크롤 활성화 */
-        padding-right: 10px; 
-        /* 모바일 스크롤 부드럽게 */
-        -webkit-overflow-scrolling: touch; 
+      /* --- [오른쪽 섹션: 포트폴리오 그리드] --- */
+      .right-section { width: 60%; padding-top: 20px; }
+
+      .grid-container { 
+        display: grid; 
+        grid-template-columns: repeat(2, 1fr); /* 2열 그리드 */
+        gap: 25px; 
       }
       
-      /* 스크롤바 커스텀 */
-      .right-section::-webkit-scrollbar { width: 6px; }
-      .right-section::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-      .right-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-
-      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding-bottom: 60px; }
       .grid-item {
-        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
-        height: 220px; display: flex; align-items: center; justify-content: center;
-        color: rgba(255,255,255,0.3); transition: transform 0.3s;
-        border-radius: 8px;
+        background: rgba(255,255,255,0.05); 
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        height: 280px; 
+        display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.2); font-weight: 600;
+        transition: transform 0.3s, border-color 0.3s;
+        overflow: hidden;
       }
-      .grid-item:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); }
+      .grid-item:hover { 
+        transform: translateY(-5px); 
+        border-color: rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.08);
+      }
       
+      /* 텍스트 블록 스타일 */
       .text-block { 
-        grid-column: 1 / -1; height: auto; 
-        padding: 30px; text-align: left; display: block; 
-        background: none; border: none;
+        grid-column: span 2; /* 가로로 꽉 차게 */
+        height: auto; min-height: 200px;
+        padding: 40px; 
+        display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+        background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
       }
-      .text-block h3 { color: #fff; margin-bottom: 15px; font-size: 24px; }
-      .text-block p { color: rgba(255,255,255,0.6); line-height: 1.6; }
+      .text-block h3 { color: #fff; margin-bottom: 15px; font-size: 26px; }
+      .text-block p { color: rgba(255,255,255,0.6); line-height: 1.6; font-size: 16px; }
 
-      /* ? 버튼 */
+      /* --- [? 버튼] --- */
       #help-btn {
         position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        width: 44px; height: 44px;
-        background: rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        width: 48px; height: 48px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 50%; color: white;
-        font-size: 18px; font-weight: 600;
+        font-size: 20px; font-weight: 700;
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer; z-index: 20;
+        cursor: pointer; z-index: 50;
         backdrop-filter: blur(10px);
-        transition: transform 0.2s, background 0.2s;
-        /* 모바일 터치 영역 확보 */
+        transition: all 0.2s;
         touch-action: manipulation;
       }
-      #help-btn:active { transform: translateX(-50%) scale(0.9); background: rgba(255, 255, 255, 0.3); }
+      #help-btn:active, #help-btn:hover { background: rgba(255, 255, 255, 0.25); transform: translateX(-50%) scale(1.1); }
 
-      /* 도움말 모달 */
+      /* --- [도움말 모달] --- */
       #help-modal {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.8); z-index: 30;
+        background: rgba(0, 0, 0, 0.85); z-index: 200;
         display: flex; align-items: center; justify-content: center;
         opacity: 0; pointer-events: none; transition: opacity 0.3s;
-        backdrop-filter: blur(5px);
+        backdrop-filter: blur(8px);
+        touch-action: auto;
       }
       #help-modal.show { opacity: 1; pointer-events: auto; }
       
       .modal-box {
-        background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.15);
-        padding: 40px; border-radius: 16px;
-        text-align: center; color: white; max-width: 320px; width: 85%;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        background: #1f1f1f; border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 40px; border-radius: 20px;
+        text-align: center; color: white; width: 90%; max-width: 360px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       }
-      .modal-box h3 { margin-bottom: 20px; font-size: 22px; }
-      .modal-box p { line-height: 1.8; color: #aaa; margin-bottom: 30px; font-size: 15px; }
+      .modal-box h3 { margin-bottom: 20px; font-size: 24px; color: #fff; }
+      .modal-box p { line-height: 1.8; color: #bbb; margin-bottom: 30px; font-size: 16px; }
       .close-help {
-        padding: 12px 30px; background: white; color: black;
-        border: none; border-radius: 30px; font-weight: 700; cursor: pointer;
-        font-size: 14px;
+        padding: 14px 40px; background: white; color: black;
+        border: none; border-radius: 50px; font-weight: 700; font-size: 16px;
+        cursor: pointer; transition: transform 0.2s;
       }
+      .close-help:active { transform: scale(0.95); }
 
-      /* 모바일 레이아웃 */
+      /* --- [모바일 반응형] --- */
       @media (max-width: 900px) {
-        #content-wrapper { flex-direction: column; padding: 30px 20px; }
-        .left-section { width: 100%; margin-bottom: 40px; padding-right: 0; text-align: center; align-items: center; }
-        .project-title { font-size: 32px; }
-        .btn-close { margin: 0 auto; }
-        .right-section { width: 100%; margin-left: 0; padding-right: 0; overflow: visible; }
-        /* 모바일에서는 그리드를 1열로 */
-        .grid-container { grid-template-columns: 1fr; padding-bottom: 100px; } 
+        #content-wrapper { flex-direction: column; padding: 100px 24px 40px 24px; } /* 상단 여백 확보 (닫기 버튼) */
+        
+        .btn-close-icon { top: 20px; right: 20px; width: 44px; height: 44px; }
+        
+        .left-section { 
+          width: 100%; padding-right: 0; padding-top: 220px; /* 명함 자리 */
+          text-align: left; margin-bottom: 40px;
+        }
+        .project-title { font-size: 36px; }
+        .project-desc { font-size: 16px; max-width: 100%; }
+        
+        .right-section { width: 100%; }
+        .grid-container { grid-template-columns: 1fr; gap: 20px; } /* 모바일 1열 */
+        .text-block { grid-column: span 1; padding: 25px; }
       }
     </style>
   </head>
   <body>
     <div id="detail-layer">
+      <button class="btn-close-icon" onclick="closeDetail()">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+
       <div id="content-wrapper">
         <div class="left-section">
-          <div class="project-title">DIGITAL WEATHERING</div>
+          <div class="project-label">Interaction Design</div>
+          <div class="project-title">DIGITAL<br>WEATHERING</div>
           <div class="project-desc">
             시간의 흐름에 따라 데이터가 남기는 흔적을 시각화했습니다.<br>
-            물리 엔진을 통해 우연성이 만들어내는 조형미를 탐구합니다.
+            사용자의 터치와 움직임이 물리적인 힘이 되어<br>
+            디지털 공간 속 명함에 고유한 풍화를 일으킵니다.
           </div>
-          <button class="btn-close" onclick="closeDetail()">돌아가기</button>
         </div>
         
         <div class="right-section">
           <div class="grid-container">
             <div class="grid-item text-block">
-              <h3>Process Archive</h3>
-              <p>초기 스케치부터 최종 렌더링까지의 과정을 기록했습니다.</p>
+              <h3>Design Process</h3>
+              <p>초기 스케치부터 최종 렌더링까지의 과정을 기록했습니다. 물리 엔진의 변수(마찰력, 중력)를 수백 번 테스트하며 최적의 자연스러움을 찾았습니다.</p>
             </div>
             <div class="grid-item">Concept Art 01</div>
             <div class="grid-item">Prototype A</div>
             <div class="grid-item">Prototype B</div>
             <div class="grid-item">Final Render</div>
             <div class="grid-item text-block">
-              <h3>Technical Note</h3>
-              <p>Built with p5.js & WebGL</p>
+              <h3>Tech Stack</h3>
+              <p>Built with p5.js & WebGL.<br>Optimized for Mobile & Desktop.</p>
             </div>
             <div class="grid-item">Code Snippet</div>
           </div>
@@ -194,7 +236,7 @@
       <div class="modal-box">
         <h3>How to Interact</h3>
         <p id="help-text">Loading...</p>
-        <button class="close-help">OK</button>
+        <button class="close-help">Start Experience</button>
       </div>
     </div>
 
@@ -207,15 +249,13 @@
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
       helpBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // 이벤트 전파 방지
+        e.stopPropagation(); 
         if (isMobile) {
           helpText.innerHTML = "👆 <b>드래그:</b> 명함 이동<br>👆 <b>터치:</b> 뒤집기<br>⏱ <b>1초 꾹:</b> 상세 보기<br>📱 <b>휴대폰 흔들기:</b> 명함 섞기";
-          
+          // 모바일 흔들기 권한 요청
           if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission()
-              .then(response => {
-                if (response === 'granted') console.log('Motion granted');
-              })
+              .then(response => { if (response === 'granted') console.log('Motion granted'); })
               .catch(console.error);
           }
         } else {
