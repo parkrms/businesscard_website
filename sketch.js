@@ -18,7 +18,7 @@ let pressStartTime;
 let mouseSpeedThreshold = 360.0; 
 let shakeRadius; 
 
-// [NEW] 모바일 감지 변수
+// 모바일 감지 변수
 let isMobileDevice = false;
 
 let lastReleaseTime = 0;
@@ -26,7 +26,7 @@ let lastShakeTime = 0;
 
 let holdStartTime = 0;
 let isHolding = false;
-let holdDuration = 1500; // 기본값 (setup에서 변경됨)
+let holdDuration = 1500; 
 let appMode = 'NORMAL'; 
 let focusedCard = null; 
 
@@ -42,14 +42,12 @@ function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL);
   noStroke();
   
-  // [NEW] 모바일 여부 체크
-  // User Agent 체크 또는 화면 너비가 좁으면 모바일로 간주
+  // 모바일 여부 체크
   isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
 
-  // [NEW] 롱프레스 시간 설정
+  // 롱프레스 시간 설정
   if (isMobileDevice) {
     holdDuration = 1000; // 모바일 1초
-    // 모바일 흔들기 민감도 설정 (p5.js 내장 함수)
     setShakeThreshold(30); 
   } else {
     holdDuration = 1500; // PC 1.5초
@@ -78,9 +76,15 @@ function setup() {
     backColors.push(color(hex));
   }
 
+  // [수정] 배치 범위 확장
+  // 기존: width/2 - cardW (명함 전체 너비만큼 안쪽으로 들어옴 -> 중앙에 뭉침)
+  // 수정: width/2 - cardW/2 (명함 절반 너비만큼만 안쪽으로 -> 화면 꽉 채움)
   for (let i = 0; i < numCards; i++) {
-    let rX = random(-width/2 + cardW, width/2 - cardW);
-    let rY = random(-height/2 + cardH, height/2 - cardH);
+    let safeMarginX = cardW / 2;
+    let safeMarginY = cardH / 2;
+    
+    let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
+    let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
     cards.push(new BusinessCard(rX, rY, rAngle, backColors[i % backColors.length]));
   }
@@ -139,26 +143,22 @@ function draw() {
   }
 }
 
-// [NEW] p5.js 내장 흔들기 감지 함수 (모바일용)
+// p5.js 내장 흔들기 감지 함수 (모바일용)
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
 
-  // 흔들림 감지 시 모든 카드를 섞음
   lastShakeTime = millis();
   
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
     
-    // 모바일은 마우스 위치가 없으므로 화면 중앙에서 퍼지는 힘 + 랜덤성
-    // 또는 그냥 랜덤 방향으로 튀게 함
     let randomAngle = random(TWO_PI);
-    let forceMag = random(10, 20); // 흔들림 강도
+    let forceMag = random(10, 20); 
     
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
     
-    // 회전력 추가
     let randomSpin = random(-0.2, 0.2); 
     
     card.applyForce(forceX, forceY, randomSpin);
@@ -177,7 +177,6 @@ function triggerDetailMode(card) {
   htmlCard.style.width = card.w + 'px'; 
   htmlCard.style.height = card.h + 'px';
   
-  // 모바일에서도 좌표 보정 정확히
   let p5X_global = card.x + width/2; 
   let p5Y_global = card.y + height/2;
   htmlCard.style.left = p5X_global + 'px';
@@ -213,6 +212,23 @@ window.closeDetail = function() {
   }, 800); 
 };
 
+// --- [핵심] 모바일 터치 이벤트 매핑 ---
+function touchStarted() {
+  mousePressed();
+  // 터치 시 브라우저 기본 동작(스크롤 등) 방지
+  return false; 
+}
+
+function touchMoved() {
+  mouseDragged();
+  return false;
+}
+
+function touchEnded() {
+  mouseReleased();
+  return false;
+}
+// -------------------------------------
 
 function mousePressed() {
   if (appMode === 'DETAIL') return; 
@@ -223,6 +239,12 @@ function mousePressed() {
 
   let mX = mouseX - width/2;
   let mY = mouseY - height/2;
+
+  // 터치 좌표 보정 (p5.js는 touchX/Y를 mouseX/Y에 매핑하지만 간혹 오류가 있을 수 있어 확인)
+  if (touches.length > 0) {
+    mX = touches[0].x - width/2;
+    mY = touches[0].y - height/2;
+  }
 
   for (let i = cards.length - 1; i >= 0; i--) {
     let card = cards[i];
@@ -243,8 +265,15 @@ function mouseDragged() {
     if (dist(mouseX, mouseY, pmouseX, pmouseY) > 5) {
       isHolding = false;
     }
+    
     let mX = mouseX - width/2;
     let mY = mouseY - height/2;
+    
+    if (touches.length > 0) {
+      mX = touches[0].x - width/2;
+      mY = touches[0].y - height/2;
+    }
+
     currentCard.updateDrag(mX, mY);
   }
 }
@@ -256,6 +285,7 @@ function mouseReleased() {
 
   if (currentCard != null) {
     let duration = millis() - pressStartTime;
+    // 짧게 클릭하면 뒤집기
     if (duration < 200) {
       currentCard.flip();
     }
@@ -265,9 +295,8 @@ function mouseReleased() {
   }
 }
 
-// [수정] PC에서만 마우스 흔들기 작동
 function mouseMoved() {
-  if (isMobileDevice) return; // 모바일이면 마우스 흔들기 무시 (deviceShaken 사용)
+  if (isMobileDevice) return; 
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
 
@@ -302,7 +331,6 @@ function mouseMoved() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  // 리사이즈 시 모바일 여부 재확인
   isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
   calculateCardDimensions(); 
   for (let card of cards) {
@@ -319,7 +347,7 @@ function lerpAngle(from, to, amt) {
 }
 
 
-// 5. BusinessCard 클래스 (동일)
+// 5. BusinessCard 클래스
 class BusinessCard {
   constructor(tempX, tempY, tempAngle, tempBackColor) {
     this.x = tempX;
@@ -371,8 +399,8 @@ class BusinessCard {
       this.velY *= this.damping;
       this.angleVel *= this.angleDamping;
 
-      // 화면 바운스 (화면 밖으로 나가지 않게)
-      // 모바일에서 리사이즈 시 갇히는 문제 방지 위해 w, h 동적 참조
+      // 화면 바운스
+      // 모바일 등에서 화면 크기 변경 시 카드 크기(w, h)를 동적으로 참조
       let boundW = width/2 - this.w/2;
       let boundH = height/2 - this.h/2;
       
