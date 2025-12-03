@@ -16,7 +16,6 @@
         width: 100%; height: 100%; overflow: hidden;
         background-color: #1a1a1a;
         font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
-        /* 기본적으로 터치 제스처 막음 (p5.js 조작 위해) */
         touch-action: none; 
         user-select: none; -webkit-user-select: none;
       }
@@ -29,173 +28,163 @@
         z-index: 100;
         opacity: 0; pointer-events: none;
         transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        background: rgba(0, 0, 0, 0.65); /* 배경 조금 더 어둡게 */
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        
-        /* [중요] 상세 페이지에서는 터치/스크롤 허용 */
+        background: rgba(0, 0, 0, 0.65);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
         touch-action: auto; 
-        overflow-y: auto; /* 전체 페이지 스크롤 허용 */
-        -webkit-overflow-scrolling: touch;
+        overflow-y: auto; -webkit-overflow-scrolling: touch;
       }
 
       #detail-layer.active { opacity: 1; pointer-events: auto; }
+
+      /* --- [닫기 버튼 (X 아이콘) - 위치 고정] --- */
+      /* 스크롤 영역 밖으로 분리하여 항상 고정됨 */
+      .btn-close-fixed {
+        position: fixed; top: 30px; right: 30px;
+        width: 50px; height: 50px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        cursor: pointer; z-index: 300; /* 가장 위에 */
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        touch-action: manipulation;
+      }
+      .btn-close-fixed:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
+      .btn-close-fixed svg { width: 24px; height: 24px; fill: white; }
 
       /* --- [콘텐츠 래퍼] --- */
       #content-wrapper {
         position: relative;
         width: 100%; min-height: 100%;
-        padding: 80px 40px; /* 상하좌우 여백 */
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
+        padding: 80px 40px; 
+        display: flex; flex-direction: row; justify-content: center;
         opacity: 0; transform: translateY(30px);
         transition: all 0.5s ease 0.2s;
         max-width: 1400px; margin: 0 auto;
       }
       #detail-layer.active #content-wrapper { opacity: 1; transform: translateY(0); }
 
-      /* --- [닫기 버튼 (X 아이콘)] --- */
-      .btn-close-icon {
-        position: fixed; top: 30px; right: 30px;
-        width: 50px; height: 50px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        cursor: pointer; z-index: 200;
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-        /* 닫기 버튼은 항상 터치 가능해야 함 */
-        touch-action: manipulation; 
-      }
-      .btn-close-icon:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
-      .btn-close-icon svg { width: 24px; height: 24px; fill: white; }
-
-      /* --- [왼쪽 섹션: 프로젝트 정보] --- */
+      /* 왼쪽 섹션 */
       .left-section { 
         width: 40%; padding-right: 60px;
         display: flex; flex-direction: column; justify-content: center;
         color: #fff; text-align: left;
-        /* 명함이 들어올 자리 확보 (투명 박스) */
         padding-top: 300px; 
       }
-      
-      .project-label {
-        font-size: 14px; font-weight: 600; letter-spacing: 2px;
-        color: rgba(255,255,255,0.5); margin-bottom: 15px; text-transform: uppercase;
-      }
+      .project-label { font-size: 14px; font-weight: 600; letter-spacing: 2px; color: rgba(255,255,255,0.5); margin-bottom: 15px; text-transform: uppercase; }
       .project-title { 
-        font-size: 56px; font-weight: 800; margin-bottom: 25px; 
-        line-height: 1.1; letter-spacing: -1px;
-        background: linear-gradient(to right, #fff, #aaa);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        font-size: 56px; font-weight: 800; margin-bottom: 25px; line-height: 1.1; letter-spacing: -1px;
+        background: linear-gradient(to right, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       }
-      .project-desc { 
-        font-size: 18px; line-height: 1.7; color: rgba(255,255,255,0.8); 
-        margin-bottom: 40px; max-width: 90%;
-      }
+      .project-desc { font-size: 18px; line-height: 1.7; color: rgba(255,255,255,0.8); margin-bottom: 40px; max-width: 90%; }
 
-      /* --- [오른쪽 섹션: 포트폴리오 그리드] --- */
+      /* 오른쪽 섹션 */
       .right-section { width: 60%; padding-top: 20px; }
-
-      .grid-container { 
-        display: grid; 
-        grid-template-columns: repeat(2, 1fr); /* 2열 그리드 */
-        gap: 25px; 
-      }
-      
+      .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; }
       .grid-item {
-        background: rgba(255,255,255,0.05); 
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 12px;
-        height: 280px; 
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px; height: 280px; 
         display: flex; align-items: center; justify-content: center;
-        color: rgba(255,255,255,0.2); font-weight: 600;
-        transition: transform 0.3s, border-color 0.3s;
-        overflow: hidden;
+        color: rgba(255,255,255,0.2); font-weight: 600; transition: transform 0.3s;
       }
-      .grid-item:hover { 
-        transform: translateY(-5px); 
-        border-color: rgba(255,255,255,0.3);
-        background: rgba(255,255,255,0.08);
-      }
-      
-      /* 텍스트 블록 스타일 */
+      .grid-item:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); }
       .text-block { 
-        grid-column: span 2; /* 가로로 꽉 차게 */
-        height: auto; min-height: 200px;
-        padding: 40px; 
+        grid-column: span 2; height: auto; min-height: 200px; padding: 40px; 
         display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
         background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
       }
       .text-block h3 { color: #fff; margin-bottom: 15px; font-size: 26px; }
       .text-block p { color: rgba(255,255,255,0.6); line-height: 1.6; font-size: 16px; }
 
-      /* --- [? 버튼] --- */
+      /* --- [? 버튼 (시인성 개선)] --- */
       #help-btn {
         position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
         width: 48px; height: 48px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 50%; color: white;
-        font-size: 20px; font-weight: 700;
+        border: 2px solid white; border-radius: 50%;
+        font-size: 24px; font-weight: 800;
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; z-index: 50;
-        backdrop-filter: blur(10px);
-        transition: all 0.2s;
+        transition: transform 0.2s;
         touch-action: manipulation;
+        
+        /* [핵심] 배경색에 따라 색상 반전 (흰 배경->검은 버튼, 검은 배경->흰 버튼) */
+        color: white;
+        background: transparent;
+        mix-blend-mode: difference;
       }
-      #help-btn:active, #help-btn:hover { background: rgba(255, 255, 255, 0.25); transform: translateX(-50%) scale(1.1); }
+      #help-btn:active { transform: translateX(-50%) scale(0.9); }
 
-      /* --- [도움말 모달] --- */
-      #help-modal {
+      /* --- [도움말 오버레이 (디자인 개선)] --- */
+      #help-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.85); z-index: 200;
+        background: rgba(0, 0, 0, 0.4); /* 배경 살짝 어둡게 */
+        z-index: 200;
         display: flex; align-items: center; justify-content: center;
-        opacity: 0; pointer-events: none; transition: opacity 0.3s;
-        backdrop-filter: blur(8px);
-        touch-action: auto;
+        opacity: 0; pointer-events: none; 
+        transition: opacity 0.4s ease;
+        backdrop-filter: blur(25px); /* 전체 화면 강력한 블러 */
+        -webkit-backdrop-filter: blur(25px);
+        touch-action: auto; /* 닫기 위해 터치 가능하게 */
       }
-      #help-modal.show { opacity: 1; pointer-events: auto; }
+      #help-overlay.show { opacity: 1; pointer-events: auto; }
       
-      .modal-box {
-        background: #1f1f1f; border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 40px; border-radius: 20px;
-        text-align: center; color: white; width: 90%; max-width: 360px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      /* 인스트럭션 그리드 */
+      .help-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        width: 100%; max-width: 600px;
+        padding: 20px;
       }
-      .modal-box h3 { margin-bottom: 20px; font-size: 24px; color: #fff; }
-      .modal-box p { line-height: 1.8; color: #bbb; margin-bottom: 30px; font-size: 16px; }
-      .close-help {
-        padding: 14px 40px; background: white; color: black;
-        border: none; border-radius: 50px; font-weight: 700; font-size: 16px;
-        cursor: pointer; transition: transform 0.2s;
+
+      .help-item {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 40px 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.03);
+        text-align: center;
+        color: white;
       }
-      .close-help:active { transform: scale(0.95); }
+      
+      .icon-box {
+        font-size: 40px; margin-bottom: 20px;
+        width: 80px; height: 80px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+      }
+      
+      .action-name { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase; }
+      .action-desc { font-size: 20px; font-weight: 700; }
 
       /* --- [모바일 반응형] --- */
       @media (max-width: 900px) {
-        #content-wrapper { flex-direction: column; padding: 100px 24px 40px 24px; } /* 상단 여백 확보 (닫기 버튼) */
+        /* 상세페이지 */
+        #content-wrapper { flex-direction: column; padding: 100px 24px 40px 24px; }
         
-        .btn-close-icon { top: 20px; right: 20px; width: 44px; height: 44px; }
+        .btn-close-fixed { top: 20px; right: 20px; width: 44px; height: 44px; } /* 위치 고정됨 */
         
-        .left-section { 
-          width: 100%; padding-right: 0; padding-top: 220px; /* 명함 자리 */
-          text-align: left; margin-bottom: 40px;
-        }
+        .left-section { width: 100%; padding-right: 0; padding-top: 220px; text-align: left; margin-bottom: 40px; }
         .project-title { font-size: 36px; }
-        .project-desc { font-size: 16px; max-width: 100%; }
-        
         .right-section { width: 100%; }
-        .grid-container { grid-template-columns: 1fr; gap: 20px; } /* 모바일 1열 */
+        .grid-container { grid-template-columns: 1fr; gap: 20px; }
         .text-block { grid-column: span 1; padding: 25px; }
+
+        /* 도움말 */
+        .help-grid { grid-template-columns: 1fr; gap: 15px; max-width: 320px; }
+        .help-item { flex-direction: row; padding: 20px; justify-content: flex-start; text-align: left; }
+        .icon-box { width: 50px; height: 50px; font-size: 24px; margin-bottom: 0; margin-right: 20px; flex-shrink: 0; }
+        .help-text-group { display: flex; flex-direction: column; }
+        .action-name { font-size: 12px; margin-bottom: 2px; }
+        .action-desc { font-size: 18px; }
       }
     </style>
   </head>
   <body>
     <div id="detail-layer">
-      <button class="btn-close-icon" onclick="closeDetail()">
+      <button class="btn-close-fixed" onclick="closeDetail()">
         <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
       </button>
 
@@ -232,41 +221,64 @@
 
     <div id="help-btn">?</div>
 
-    <div id="help-modal">
-      <div class="modal-box">
-        <h3>How to Interact</h3>
-        <p id="help-text">Loading...</p>
-        <button class="close-help">Start Experience</button>
-      </div>
+    <div id="help-overlay">
+      <div class="help-grid" id="help-grid-content">
+        </div>
     </div>
 
     <script>
       const helpBtn = document.getElementById('help-btn');
-      const helpModal = document.getElementById('help-modal');
-      const helpText = document.getElementById('help-text');
-      const closeHelp = document.querySelector('.close-help');
+      const helpOverlay = document.getElementById('help-overlay');
+      const helpGrid = document.getElementById('help-grid-content');
 
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+      // 인스트럭션 데이터
+      const pcInstructions = [
+        { icon: '🖱', name: 'Drag', desc: 'Move Card' },
+        { icon: '👆', name: 'Click', desc: 'Flip Card' },
+        { icon: '⏱', name: 'Hold (1.5s)', desc: 'Detail View' },
+        { icon: '💨', name: 'Shake Mouse', desc: 'Mix Cards' }
+      ];
+
+      const mobileInstructions = [
+        { icon: '👆', name: 'Drag', desc: 'Move Card' },
+        { icon: '👆', name: 'Tap', desc: 'Flip Card' },
+        { icon: '⏱', name: 'Hold (1s)', desc: 'Detail View' },
+        { icon: '📱', name: 'Shake Device', desc: 'Mix Cards' }
+      ];
+
+      function renderHelp() {
+        const data = isMobile ? mobileInstructions : pcInstructions;
+        helpGrid.innerHTML = data.map(item => `
+          <div class="help-item">
+            <div class="icon-box">${item.icon}</div>
+            <div class="help-text-group">
+              <div class="action-name">${item.name}</div>
+              <div class="action-desc">${item.desc}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
       helpBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); 
-        if (isMobile) {
-          helpText.innerHTML = "👆 <b>드래그:</b> 명함 이동<br>👆 <b>터치:</b> 뒤집기<br>⏱ <b>1초 꾹:</b> 상세 보기<br>📱 <b>휴대폰 흔들기:</b> 명함 섞기";
-          // 모바일 흔들기 권한 요청
-          if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-            DeviceMotionEvent.requestPermission()
-              .then(response => { if (response === 'granted') console.log('Motion granted'); })
-              .catch(console.error);
-          }
-        } else {
-          helpText.innerHTML = "🖱 <b>드래그:</b> 명함 이동<br>🖱 <b>클릭:</b> 뒤집기<br>⏱ <b>1.5초 꾹:</b> 상세 보기<br>💨 <b>마우스 흔들기:</b> 명함 섞기";
+        e.stopPropagation();
+        renderHelp();
+        
+        // 모바일 흔들기 권한 요청
+        if (isMobile && typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          DeviceMotionEvent.requestPermission()
+            .then(response => { if (response === 'granted') console.log('Motion granted'); })
+            .catch(console.error);
         }
-        helpModal.classList.add('show');
+        
+        helpOverlay.classList.add('show');
       });
 
-      closeHelp.addEventListener('click', (e) => {
+      // 오버레이 클릭 시 닫기
+      helpOverlay.addEventListener('click', (e) => {
         e.stopPropagation();
-        helpModal.classList.remove('show');
+        helpOverlay.classList.remove('show');
       });
     </script>
   </body>
