@@ -80,7 +80,6 @@ function setup() {
   for (let i = 0; i < numCards; i++) {
     let safeMarginX = cardW * 0.1; 
     let safeMarginY = cardH * 0.1;
-    
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
@@ -89,7 +88,6 @@ function setup() {
 }
 
 function calculateCardDimensions() {
-  // PC 크기 0.25 (적당함), 모바일 0.55
   let ratio = isMobileDevice ? 0.55 : 0.25;
   cardW = constrain(windowWidth * ratio, 200, 500); 
   cardH = cardW * (50 / 90); 
@@ -256,8 +254,9 @@ function mouseMoved() {
 
   if (mouseSpeed > mouseSpeedThreshold) {
     lastShakeTime = millis();
-    let rawPushX = (mouseX - pmouseX) * 0.4;
-    let rawPushY = (mouseY - pmouseY) * 0.4;
+    // PC도 흔들기 강하게
+    let rawPushX = (mouseX - pmouseX) * 0.8;
+    let rawPushY = (mouseY - pmouseY) * 0.8;
     let mX = mouseX - width/2;
     let mY = mouseY - height/2;
 
@@ -266,30 +265,34 @@ function mouseMoved() {
       let d = dist(mX, mY, card.x, card.y);
       if (d < shakeRadius) {
         let distFactor = map(d, 0, shakeRadius, 1.0, 0.2);
-        let randomSpin = random(-0.2, 0.2) * distFactor;
+        // 회전 최소화
+        let randomSpin = random(-0.05, 0.05) * distFactor;
         card.applyForce(rawPushX * distFactor, rawPushY * distFactor, randomSpin);
       }
     }
   }
 }
 
-// [수정] 모바일 흔들기 (자연스러운 섞임으로 롤백)
+// [수정] 모바일 흔들기 (강하게 & 회전 억제)
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
-  
   if (millis() - lastShakeTime < 300) return;
+  
   lastShakeTime = millis();
   
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
     let randomAngle = random(TWO_PI);
-    // [수정] 힘을 5~15로 낮춰서 부드럽게 섞이도록
-    let forceMag = random(5, 15); 
+    
+    // [수정] 이동 힘 대폭 증가 (15~35)
+    let forceMag = random(15, 35); 
     
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
-    let randomSpin = random(-0.1, 0.1); // 회전도 줄임
+    
+    // [수정] 회전은 거의 없게 (-0.05 ~ 0.05)
+    let randomSpin = random(-0.05, 0.05); 
     
     card.applyForce(forceX, forceY, randomSpin);
   }
@@ -340,7 +343,7 @@ class BusinessCard {
     this.angleVel = 0;
     
     this.mass = 1.0; 
-    this.damping = 0.92; 
+    this.damping = 0.85; 
     this.angleDamping = 0.90; 
   }
 
@@ -403,23 +406,25 @@ class BusinessCard {
       fill(this.backColor);
       rect(0, 0, this.w, this.h);
       
-      // [수정] + 아이콘 그리기
+      // [수정] + 아이콘
       if (latestFlippedCard === this) {
-        // [위치 반전]
-        // 로컬 좌표계에서 오른쪽(+w/2)으로 이동해야
-        // 화면상에서 오른쪽 하단에 보임 (rotateY 때문)
-        let btnX = this.w/2 - 20; 
+        // 위치: 우측 하단 (20px 여백)
+        // 로컬좌표상 오른쪽 = +w/2 (rotateY로 인해 화면상 왼쪽)
+        // 화면상 오른쪽 = -w/2
+        // 따라서 -w/2 + 20 은 화면상 오른쪽 끝에서 20px 안쪽
+        let btnX = -this.w/2 + 20; 
         let btnY = this.h/2 - 20; 
         
         push();
         translate(btnX, btnY, 5); 
         
-        // [디자인 수정] 원형 삭제, 얇고 작게
-        stroke(0, 200); // 검은색
-        strokeWeight(1.0); // 아주 얇게
+        // 얇은 십자가(+)
+        stroke(0, 200); 
+        strokeWeight(1.5); 
         strokeCap(SQUARE);
         
-        let size = 4; // 아주 작게
+        // [수정] 크기 6px로 확대
+        let size = 6; 
         line(-size, 0, size, 0); 
         line(0, -size, 0, size); 
         
@@ -464,7 +469,6 @@ class BusinessCard {
     this.isDragging = false;
   }
 
-  // [중요] 터치 영역은 그대로 유지 (터치는 잘 된다고 하셨으므로)
   isPlusClicked(mx, my) {
     if (abs(this.flipAngle - PI) > 0.2) return false;
     if (latestFlippedCard !== this) return false;
@@ -477,13 +481,11 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // 터치 영역 좌표 (로컬 왼쪽)
-    // 화면상 오른쪽 클릭 -> 로컬 왼쪽(-X) 매핑
     let btnX = -this.w/2 + 20; 
     let btnY = this.h/2 - 20;
     
-    // 터치 영역은 넉넉하게 유지 (반경 30)
-    // unrotatedX 부호 반전하여 비교
+    // 터치 영역은 넉넉하게 30px
+    // -unrotatedX (부호 반전)
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 30) {
       return true;
     }
