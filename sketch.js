@@ -14,12 +14,11 @@ let backColors = [];
 let currentCard = null;
 let pressStartTime;
 
-// [핵심] 가장 최근에 뒤집힌(상호작용한) 카드 추적용
-let latestFlippedCard = null; 
-
+// 마우스(PC) 흔들기 설정
 let mouseSpeedThreshold = 360.0; 
 let shakeRadius; 
 
+// 모바일 감지 변수
 let isMobileDevice = false;
 
 let lastReleaseTime = 0;
@@ -49,7 +48,10 @@ function setup() {
   isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
 
   if (isMobileDevice) {
+    holdDuration = 1000; // 모바일 1초
     setShakeThreshold(30); 
+  } else {
+    holdDuration = 1500; // PC 1.5초
   }
 
   calculateCardDimensions();
@@ -73,9 +75,13 @@ function setup() {
     backColors.push(color(hex));
   }
 
+  // [수정] 명함 배치 범위 확장 (뭉침 해결)
   for (let i = 0; i < numCards; i++) {
-    let safeMarginX = cardW * 0.6; 
-    let safeMarginY = cardH * 0.6;
+    // 기존 0.6 -> 0.1로 줄여서 화면 끝까지 배치되게 함
+    let safeMarginX = cardW * 0.1; 
+    let safeMarginY = cardH * 0.1;
+    
+    // 화면 중앙(0,0) 기준으로 랜덤 좌표 생성
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
@@ -84,6 +90,7 @@ function setup() {
 }
 
 function calculateCardDimensions() {
+  // 모바일/PC 비율 설정
   let ratio = isMobileDevice ? 0.55 : 0.25;
   cardW = constrain(windowWidth * ratio, 200, 500); 
   cardH = cardW * (50 / 90); 
@@ -149,20 +156,29 @@ window.closeDetail = function() {
   }, 400); 
 };
 
-// --- 입력 이벤트 처리 ---
+// --- [핵심 수정] 터치 이벤트 핸들러 (매개변수 e 추가) ---
 
-function touchStarted() {
-  if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) return true; 
+function touchStarted(e) {
+  // UI 요소 터치 시에는 p5 무시 (e.target 사용)
+  if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) {
+    return true; 
+  }
   mousePressed();
-  return false; 
+  return false; // 캔버스 터치 시 스크롤 방지
 }
-function touchMoved() {
-  if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) return true;
+
+function touchMoved(e) {
+  if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) {
+    return true;
+  }
   mouseDragged();
   return false;
 }
-function touchEnded() {
-  if (appMode === 'DETAIL' || (event.target && event.target.tagName !== 'CANVAS')) return true;
+
+function touchEnded(e) {
+  if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) {
+    return true;
+  }
   mouseReleased();
   return false;
 }
@@ -173,11 +189,14 @@ function mousePressed() {
   pressStartTime = millis();
   let mX = mouseX - width/2;
   let mY = mouseY - height/2;
+  
+  // 터치 좌표 우선 사용
   if (touches.length > 0) {
     mX = touches[0].x - width/2;
     mY = touches[0].y - height/2;
   }
 
+  // 역순 탐색 (위에 있는 카드부터 선택)
   for (let i = cards.length - 1; i >= 0; i--) {
     let card = cards[i];
     if (card.contains(mX, mY)) {
@@ -191,7 +210,7 @@ function mousePressed() {
         cards.splice(i, 1);
         cards.push(currentCard);
         
-        // [중요] 카드를 터치/드래그하면 이 카드가 '최근 카드'가 됨 (뒷면이라면 화살표 표시)
+        // 카드를 터치하면 '최근 카드'가 됨
         if (abs(card.flipAngle - PI) < 0.2) {
           latestFlippedCard = card;
         }
@@ -234,12 +253,10 @@ function mouseReleased() {
     // 짧게 클릭 -> 뒤집기
     if (duration < 200) {
       currentCard.flip();
-      // 뒤집히면 이 카드가 '최근 카드'가 됨
       latestFlippedCard = currentCard;
     }
     currentCard.stopDrag();
     currentCard = null;
-    lastReleaseTime = millis();
   }
 }
 
@@ -279,7 +296,9 @@ function mouseMoved() {
 
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
-  if (millis() - lastReleaseTime < 200) return;
+  // 너무 자주 호출되는 것 방지
+  if (millis() - lastShakeTime < 300) return; 
+  
   lastShakeTime = millis();
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
@@ -310,7 +329,7 @@ function lerpAngle(from, to, amt) {
 }
 
 
-// 6. BusinessCard 클래스
+// 6. BusinessCard 클래스 (기존 유지)
 class BusinessCard {
   constructor(tempX, tempY, tempAngle, tempBackColor) {
     this.x = tempX;
@@ -400,28 +419,23 @@ class BusinessCard {
       fill(this.backColor);
       rect(0, 0, this.w, this.h);
       
-      // [핵심] 화살표 버튼 그리기 (최근 상호작용한 카드에만)
+      // 화살표 버튼 그리기 (최근 상호작용한 카드에만)
       if (latestFlippedCard === this) {
-        // 좌표: 뒷면에서는 좌우가 반전되므로, 시각적 우하단은 로컬 좌표계의 (-x, +y)
-        // 왼쪽 가장자리(-w/2)에서 안쪽으로, 아래쪽 가장자리(h/2)에서 안쪽으로
         let btnX = -this.w/2 + 35; 
         let btnY = this.h/2 - 35;
         
         push();
-        translate(btnX, btnY, 5); // 카드 위로 띄움 (Z=5)
+        translate(btnX, btnY, 5); 
         
-        // 1. 블러리한 원형 배경 (검은색 반투명)
         noStroke();
-        fill(0, 40); // 검은색 15% 투명도
+        fill(0, 40); 
         ellipse(0, 0, 44, 44);
         
-        // 2. 테두리 (옵션)
         noFill();
         stroke(0, 50);
         strokeWeight(1);
         ellipse(0, 0, 44, 44);
         
-        // 3. 화살표 (흰색, 잘 보이게)
         fill(255, 240); 
         noStroke();
         textAlign(CENTER, CENTER);
@@ -469,9 +483,7 @@ class BusinessCard {
     this.isDragging = false;
   }
 
-  // 화살표 클릭 체크
   isArrowClicked(mx, my) {
-    // 뒷면이 아니거나, 이 카드가 최근 카드가 아니면 클릭 불가
     if (abs(this.flipAngle - PI) > 0.2) return false;
     if (latestFlippedCard !== this) return false;
 
@@ -483,14 +495,22 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // 뒷면이므로 X 반전해서 체크
     let btnX = -this.w/2 + 35; 
     let btnY = this.h/2 - 35;
     
-    // 반경 40px (터치 영역 여유있게)
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 40) {
       return true;
     }
     return false;
+  }
+
+  contains(mx, my) {
+    let dx = mx - this.x;
+    let dy = my - this.y;
+    let cosA = cos(-this.angle);
+    let sinA = sin(-this.angle);
+    let unrotatedX = dx * cosA - dy * sinA;
+    let unrotatedY = dx * sinA + dy * cosA;
+    return (abs(unrotatedX) < this.w / 2 && abs(unrotatedY) < this.h / 2);
   }
 }
