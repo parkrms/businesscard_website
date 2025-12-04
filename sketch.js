@@ -423,8 +423,8 @@ class BusinessCard {
         strokeWeight(1.5); 
         strokeCap(SQUARE);
         
-        // [수정] 크기 8px로 확대
-        let size = 8; 
+        // [수정] 크기 6.5px로 확대
+        let size = 6.5; 
         line(-size, 0, size, 0); 
         line(0, -size, 0, size); 
         
