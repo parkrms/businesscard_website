@@ -17,8 +17,8 @@ let pressStartTime;
 // 가장 최근에 뒤집힌 카드
 let latestFlippedCard = null; 
 
-// [수정] PC 마우스 흔들기 감도 (낮을수록 민감)
-let mouseSpeedThreshold = 80.0; 
+// PC 마우스 흔들기 감도
+let mouseSpeedThreshold = 100.0; 
 let shakeRadius; 
 
 let isMobileDevice = false;
@@ -50,7 +50,7 @@ function setup() {
 
   if (isMobileDevice) {
     holdDuration = 1000; 
-    setShakeThreshold(20); 
+    setShakeThreshold(30); 
   } else {
     holdDuration = 1500; 
   }
@@ -80,7 +80,6 @@ function setup() {
   for (let i = 0; i < numCards; i++) {
     let safeMarginX = cardW * 0.1; 
     let safeMarginY = cardH * 0.1;
-    
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
@@ -132,11 +131,9 @@ function draw() {
 function triggerDetailMode(card) {
   appMode = 'DETAIL';
   focusedCard = card;
-  
   card.stopDrag(); 
   card.isDragging = false; 
   currentCard = null; 
-
   document.getElementById('detail-layer').classList.add('active');
   document.getElementById('global-close-btn').classList.add('visible');
 }
@@ -154,7 +151,7 @@ window.closeDetail = function() {
   }, 400); 
 };
 
-// --- 입력 처리 ---
+// --- 입력 처리 (모바일/PC 통합) ---
 
 function touchStarted(e) {
   if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) return true; 
@@ -195,9 +192,11 @@ function handleInputStart(x, y) {
   for (let i = cards.length - 1; i >= 0; i--) {
     let card = cards[i];
     if (card.contains(mX, mY)) {
+      // 1. 플러스 버튼 클릭 확인
       if (latestFlippedCard === card && card.isPlusClicked(mX, mY)) {
         clickedArrowOnCard = card;
       } else {
+        // 2. 일반 드래그
         currentCard = card;
         currentCard.startDrag(mX, mY);
         cards.splice(i, 1);
@@ -245,7 +244,7 @@ function handleInputEnd() {
   }
 }
 
-// [수정] PC 마우스 흔들기 (강력하게, 회전은 적게)
+// PC 마우스 흔들기
 function mouseMoved() {
   if (isMobileDevice) return; 
   if (appMode === 'DETAIL') return;
@@ -255,9 +254,8 @@ function mouseMoved() {
 
   if (mouseSpeed > mouseSpeedThreshold) {
     lastShakeTime = millis();
-    // 힘을 0.8로 강력하게 (이전 0.4)
-    let rawPushX = (mouseX - pmouseX) * 0.8;
-    let rawPushY = (mouseY - pmouseY) * 0.8;
+    let rawPushX = (mouseX - pmouseX) * 0.4;
+    let rawPushY = (mouseY - pmouseY) * 0.4;
     let mX = mouseX - width/2;
     let mY = mouseY - height/2;
 
@@ -266,33 +264,28 @@ function mouseMoved() {
       let d = dist(mX, mY, card.x, card.y);
       if (d < shakeRadius) {
         let distFactor = map(d, 0, shakeRadius, 1.0, 0.2);
-        // 회전(Spin)은 아주 작게 (0.05)
-        let randomSpin = random(-0.05, 0.05) * distFactor; 
+        let randomSpin = random(-0.2, 0.2) * distFactor;
         card.applyForce(rawPushX * distFactor, rawPushY * distFactor, randomSpin);
       }
     }
   }
 }
 
-// [수정] 모바일 흔들기 (강력하게, 회전은 적게)
+// 모바일 흔들기 (자연스럽게)
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
-  
   if (millis() - lastShakeTime < 300) return;
+  
   lastShakeTime = millis();
   
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
     let randomAngle = random(TWO_PI);
-    // 힘의 크기 대폭 증가 (20~50)
-    let forceMag = random(20, 50); 
-    
+    let forceMag = random(5, 15); // 힘을 적당히 (자연스럽게)
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
-    // 회전은 아주 살짝만 (-0.05 ~ 0.05)
-    let randomSpin = random(-0.05, 0.05); 
-    
+    let randomSpin = random(-0.2, 0.2); 
     card.applyForce(forceX, forceY, randomSpin);
   }
 }
@@ -342,7 +335,8 @@ class BusinessCard {
     this.angleVel = 0;
     
     this.mass = 1.0; 
-    this.damping = 0.90; 
+    // 마찰력: 0.85 (얼음판 X, 종이 O)
+    this.damping = 0.85; 
     this.angleDamping = 0.90; 
   }
 
@@ -405,24 +399,22 @@ class BusinessCard {
       fill(this.backColor);
       rect(0, 0, this.w, this.h);
       
-      // [수정] + 아이콘 (확실한 오른쪽 하단 위치)
+      // [수정] + 아이콘 (얇고, 작게, 오른쪽 하단)
       if (latestFlippedCard === this) {
-        // 뒤집혔으므로 좌우 반전 고려:
-        // Local 좌표계에서: -X가 시각적 오른쪽, +X가 시각적 왼쪽
-        // 따라서 오른쪽 하단은: (-this.w/2 + margin, this.h/2 - margin)
-        
-        let btnX = -this.w/2 + 20; // 오른쪽 끝에서 20px 안쪽
-        let btnY = this.h/2 - 20;  // 아래쪽 끝에서 20px 안쪽
+        // 위치: 왼쪽 가장자리(-w/2)에서 안쪽으로 20px
+        // (rotateY(PI) -> 로컬 왼쪽 = 시각적 오른쪽)
+        let btnX = -this.w/2 + 20; 
+        let btnY = this.h/2 - 20; 
         
         push();
         translate(btnX, btnY, 5); 
         
-        // 얇은 십자가(+) 그리기
-        stroke(0, 220); // 진한 검정
-        strokeWeight(1.5); 
+        // 얇은 십자가(+)
+        stroke(0); // 진한 검정
+        strokeWeight(1.5); // 얇게
         strokeCap(SQUARE);
         
-        let size = 6; 
+        let size = 6; // 작게
         line(-size, 0, size, 0); 
         line(0, -size, 0, size); 
         
@@ -467,7 +459,7 @@ class BusinessCard {
     this.isDragging = false;
   }
 
-  // [수정] 플러스 아이콘 클릭 감지 (좌표계 완벽 대응)
+  // [수정] 플러스 아이콘 클릭 감지 (좌표계 수정됨)
   isPlusClicked(mx, my) {
     if (abs(this.flipAngle - PI) > 0.2) return false;
     if (latestFlippedCard !== this) return false;
@@ -477,7 +469,6 @@ class BusinessCard {
     let cosA = cos(-this.angle);
     let sinA = sin(-this.angle);
     
-    // unrotatedX는 화면상 마우스 위치 (카드 중심 기준)
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
@@ -485,11 +476,11 @@ class BusinessCard {
     let btnX = -this.w/2 + 20; 
     let btnY = this.h/2 - 20;
     
-    // [중요] 뒤집힌 상태(rotateY) 좌표계 매핑
-    // 화면상 오른쪽 클릭(unrotatedX > 0) -> 로컬상 왼쪽(-X)
-    // 따라서 unrotatedX의 부호를 뒤집어서(-unrotatedX) 버튼 위치(btnX)와 비교해야 함.
-    // btnX는 음수(-w/2 + 20)임.
+    // [중요] unrotatedX는 화면상 좌표(카드 중심 기준).
+    // 카드가 뒤집혀있으므로(rotateY), 화면 오른쪽 클릭은 로컬 왼쪽(-X)에 매핑됨.
+    // 따라서 -unrotatedX (부호 반전) 값과 btnX (음수) 값을 비교해야 함.
     
+    // 반경 30px (시각적 크기보다 훨씬 넓게 잡음 -> 터치 용이)
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 30) {
       return true;
     }
