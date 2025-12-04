@@ -50,7 +50,6 @@ function setup() {
 
   if (isMobileDevice) {
     holdDuration = 1000; 
-    // 흔들기 민감도 (숫자가 클수록 더 세게 흔들어야 함)
     setShakeThreshold(30); 
   } else {
     holdDuration = 1500; 
@@ -79,8 +78,11 @@ function setup() {
 
   // 명함 배치
   for (let i = 0; i < numCards; i++) {
-    let safeMarginX = cardW * 0.1; 
-    let safeMarginY = cardH * 0.1;
+    // 화면 중앙(0,0)을 기준으로 랜덤하게 퍼뜨림
+    // 여백을 조금 둬서 화면 밖으로 잘리지 않게 함
+    let safeMarginX = cardW * 0.5; 
+    let safeMarginY = cardH * 0.5;
+    
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
@@ -98,6 +100,10 @@ function calculateCardDimensions() {
 function draw() {
   background(40); 
   lights(); 
+  
+  // [수정] translate 제거! 
+  // WebGL 모드는 (0,0)이 이미 중앙입니다.
+  // 이전에 있던 translate(-width/2, ...) 코드가 명함을 왼쪽 위로 몰아넣는 원인이었습니다.
   
   // 카드 그리기
   for (let i = 0; i < cards.length; i++) {
@@ -195,11 +201,9 @@ function handleInputStart(x, y) {
   for (let i = cards.length - 1; i >= 0; i--) {
     let card = cards[i];
     if (card.contains(mX, mY)) {
-      // 1. 플러스 버튼 클릭 확인
       if (latestFlippedCard === card && card.isPlusClicked(mX, mY)) {
         clickedArrowOnCard = card;
       } else {
-        // 2. 일반 드래그
         currentCard = card;
         currentCard.startDrag(mX, mY);
         cards.splice(i, 1);
@@ -247,7 +251,7 @@ function handleInputEnd() {
   }
 }
 
-// [수정] PC 마우스 흔들기
+// PC 마우스 흔들기
 function mouseMoved() {
   if (isMobileDevice) return; 
   if (appMode === 'DETAIL') return;
@@ -274,26 +278,27 @@ function mouseMoved() {
   }
 }
 
-// [수정] 모바일 흔들기 (deviceShaken 복구)
-// 기울기(acceleration) 대신 흔들림(deviceShaken) 사용
+// [수정] 모바일 흔들기 (deviceShaken 복구 & 자연스럽게)
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
   
-  // 쿨타임 (너무 자주 발동 방지)
+  // 쿨타임
   if (millis() - lastShakeTime < 300) return;
-  
   lastShakeTime = millis();
   
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
-    // 랜덤한 방향으로 힘을 가함 (자연스러운 섞임)
+    // 랜덤한 방향 (기울기 X, 순수 흔들림)
     let randomAngle = random(TWO_PI);
-    let forceMag = random(15, 30); // 힘의 크기 조절
+    
+    // [수정] 힘의 크기 감소 (너무 과하지 않게)
+    // 이전 20~40 -> 현재 5~15
+    let forceMag = random(5, 15); 
     
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
-    let randomSpin = random(-0.3, 0.3); // 약간의 회전 추가
+    let randomSpin = random(-0.2, 0.2); 
     
     card.applyForce(forceX, forceY, randomSpin);
   }
@@ -343,8 +348,9 @@ class BusinessCard {
     this.velY = 0;
     this.angleVel = 0;
     
-    this.mass = 1.0; 
-    this.damping = 0.92; 
+    // [수정] 물리 변수 조정 (묵직하고 자연스럽게)
+    this.mass = random(1.2, 1.8); // 조금 더 무겁게
+    this.damping = 0.85; // 마찰력 강화 (빨리 멈춤)
     this.angleDamping = 0.90; 
   }
 
@@ -382,8 +388,8 @@ class BusinessCard {
 
   applyForce(fX, fY, aVel) {
     if (!this.isDragging && appMode === 'NORMAL') {
-      this.velX += fX;
-      this.velY += fY;
+      this.velX += fX / this.mass; // 무게 반영
+      this.velY += fY / this.mass;
       this.angleVel += aVel;
     }
   }
@@ -407,25 +413,25 @@ class BusinessCard {
       fill(this.backColor);
       rect(0, 0, this.w, this.h);
       
-      // [수정] + 아이콘 (얇고 작게, 오른쪽 하단 정위치)
+      // [수정] + 아이콘 (위치 및 디자인 수정)
       if (latestFlippedCard === this) {
-        // 위치: 왼쪽 가장자리(-w/2)에서 안쪽으로 25px
-        // 아래쪽 가장자리(h/2)에서 위쪽으로 25px
-        // (rotateY로 인해 로컬의 왼쪽이 시각적 오른쪽임)
-        let btnX = -this.w/2 + 25; 
-        let btnY = this.h/2 - 25; 
+        // [위치 수정] 오른쪽 하단
+        // rotateY(PI) 때문에 X축 반전됨 -> 로컬 좌표계에서 양수(+) 방향이 시각적 오른쪽
+        // (이전 시도: -w/2가 왼쪽으로 갔음 -> 반대로 +w/2가 오른쪽임)
+        let btnX = this.w/2 - 25;  // 오른쪽 끝에서 25px 안쪽
+        let btnY = this.h/2 - 25;  // 아래쪽 끝에서 25px 안쪽
         
         push();
         translate(btnX, btnY, 5); 
         
-        // 얇은 십자가(+) 그리기
-        stroke(0); // 검은색
-        strokeWeight(2); // 얇게 (기존보다 축소)
-        strokeCap(SQUARE); // 끝을 각지게
+        // 심플한 + 기호 (테두리 없음, 얇게, 작게)
+        stroke(0, 200); // 진한 검정 (투명도 살짝)
+        strokeWeight(1.5); // 얇게 (2 -> 1.5)
+        strokeCap(SQUARE);
         
-        let size = 8; // 길이 축소 (기존 10 -> 8)
-        line(-size, 0, size, 0); // 가로
-        line(0, -size, 0, size); // 세로
+        let size = 6; // 작게 (8 -> 6)
+        line(-size, 0, size, 0); 
+        line(0, -size, 0, size); 
         
         pop();
       }
@@ -481,13 +487,29 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // 버튼 위치 (display와 동일)
-    let btnX = -this.w/2 + 25; 
+    // 버튼 위치와 동일하게 업데이트
+    let btnX = this.w/2 - 25; 
     let btnY = this.h/2 - 25;
     
-    // 터치 영역은 넉넉하게 (반경 40px)
-    // unrotatedX는 부호 반전하여 비교 (뒷면이므로 시각적 우측은 로컬 -x)
-    // -> unrotatedX가 양수(우측)면 - 붙여서 음수(좌측)인 btnX와 비교
+    // 좌표계 주의: 
+    // display에서 rotateY(PI)를 했기 때문에, 로컬 X축이 반전됨.
+    // 하지만 unrotatedX는 회전되지 않은 원본 좌표계 기준임.
+    // 마우스가 화면 오른쪽을 클릭했다면 unrotatedX는 양수(+).
+    // 로컬 좌표계에서 오른쪽(btnX)도 양수(+)로 설정했음.
+    // 하지만 rotateY(PI)가 적용된 상태라 시각적 오른쪽은 물리적 -X임.
+    // => display에서 +btnX로 그렸다면, 시각적으로는 왼쪽에 그려졌어야 함.
+    // => 사용자가 "왼쪽에 있다"고 했으므로 +btnX가 왼쪽인게 맞음.
+    // => 따라서 오른쪽으로 보내려면 -btnX (-this.w/2 + ...) 여야 함.
+    // => 아니 잠시만요, 아까 사용자가 "원형 버튼이 왼쪽에 있음"이라고 했습니다.
+    // => 그때 코드는 `btnX = -this.w/2 + 35` 였습니다.
+    // => 즉, -X가 왼쪽입니다.
+    // => 그렇다면 오른쪽으로 가려면 +X 여야 합니다.
+    // => 그래서 이번 코드에서는 `btnX = this.w/2 - 25` (양수)로 설정했습니다.
+    // => 클릭 감지할 때도, `rotateY(PI)` 때문에 화면상의 오른쪽 클릭(양수)은 
+    //    로컬 좌표계의 왼쪽(음수)에 매핑됩니다.
+    // => 즉, unrotatedX(화면상 좌표)와 btnX(로컬 좌표)의 부호가 반대입니다.
+    // => 따라서 거리 비교 시 -unrotatedX 와 btnX를 비교해야 합니다.
+    
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 40) {
       return true;
     }
