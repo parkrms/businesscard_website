@@ -412,7 +412,7 @@ class BusinessCard {
         // 로컬좌표상 오른쪽 = +w/2 (rotateY로 인해 화면상 왼쪽)
         // 화면상 오른쪽 = -w/2
         // 따라서 -w/2 + 20 은 화면상 오른쪽 끝에서 20px 안쪽
-        let btnX = -this.w/2 - 20; 
+        let btnX =  + 20; 
         let btnY = this.h/2 - 20; 
         
         push();
