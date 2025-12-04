@@ -285,8 +285,8 @@ function deviceShaken() {
     let card = cards[i];
     let randomAngle = random(TWO_PI);
     
-    // [수정] 이동 힘 대폭 증가 (15~35)
-    let forceMag = random(15, 35); 
+    // [수정] 이동 힘 대폭 증가 (30~55)
+    let forceMag = random(30, 55); 
     
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
