@@ -13,7 +13,7 @@ let pressStartTime;
 let latestFlippedCard = null; 
 
 // 물리/인터랙션 설정
-let mouseSpeedThreshold = 340.0; 
+let mouseSpeedThreshold = 400.0; 
 let shakeRadius; 
 
 // 모바일 감지
