@@ -320,11 +320,14 @@ function lerpAngle(from, to, amt) {
   return from + diff * amt;
 }
 
+// ... (1~4 섹션은 이전 V25와 동일) ...
 
 // ==========================================
-// 6. BusinessCard 클래스
+// 6. BusinessCard 클래스 수정 (display, isPlusClicked)
 // ==========================================
 class BusinessCard {
+  // ... (constructor, update, applyForce, flip, drag 함수 등은 동일) ...
+  
   constructor(tempX, tempY, tempAngle, frontImg, backImg, id) {
     this.x = tempX;
     this.y = tempY;
@@ -332,8 +335,8 @@ class BusinessCard {
     this.w = cardW; 
     this.h = cardH;
     this.angle = tempAngle;
+    this.backColor = backColors[id % backColors.length]; // 색상 참조를 위해 다시 명시
     
-    // 이미지 및 ID 할당
     this.frontImg = frontImg;
     this.backImg = backImg;
     this.id = id; 
@@ -357,7 +360,9 @@ class BusinessCard {
     this.angleDamping = 0.90; 
   }
 
+  // ... (update, applyForce, flip, drag 함수들은 위와 동일) ...
   update() {
+    // V25 코드와 동일하게 유지
     if (this.isDragging) {
       this.z = lerp(this.z, 10.0, 0.2);
       let targetAngle = 0.0;
@@ -365,21 +370,14 @@ class BusinessCard {
       this.velX = 0; this.velY = 0; this.angleVel = 0;
     } else {
       this.z = lerp(this.z, 0.0, 0.1);
-      this.x += this.velX;
-      this.y += this.velY;
-      this.angle += this.angleVel;
-      this.velX *= this.damping;
-      this.velY *= this.damping;
-      this.angleVel *= this.angleDamping;
-
-      let boundW = width/2 - this.w/2;
-      let boundH = height/2 - this.h/2;
+      this.x += this.velX; this.y += this.velY; this.angle += this.angleVel;
+      this.velX *= this.damping; this.velY *= this.damping; this.angleVel *= this.angleDamping;
+      let boundW = width/2 - this.w/2; let boundH = height/2 - this.h/2;
       if (this.x < -boundW) { this.x = -boundW; this.velX *= -0.5; }
       if (this.x > boundW) { this.x = boundW; this.velX *= -0.5; }
       if (this.y < -boundH) { this.y = -boundH; this.velY *= -0.5; }
       if (this.y > boundH) { this.y = boundH; this.velY *= -0.5; }
     }
-
     if (this.isFlipping) {
       this.flipAngle = lerp(this.flipAngle, this.flipTarget, this.flipSpeed);
       if (abs(this.flipAngle - this.flipTarget) < 0.01) {
@@ -391,62 +389,8 @@ class BusinessCard {
 
   applyForce(fX, fY, aVel) {
     if (!this.isDragging && appMode === 'NORMAL') {
-      this.velX += fX;
-      this.velY += fY;
-      this.angleVel += aVel;
+      this.velX += fX; this.velY += fY; this.angleVel += aVel;
     }
-  }
-
-  display() {
-    push();
-    translate(this.x, this.y, this.z);
-    rotate(this.angle);
-
-    translate(this.flipAnchorX, this.flipAnchorY, 0);
-    rotateY(this.flipAngle);
-    translate(-this.flipAnchorX, -this.flipAnchorY, 0);
-
-    rectMode(CENTER);
-    imageMode(CENTER);
-
-    if (this.flipAngle > HALF_PI) {
-      // 뒷면
-      push();
-      rotateY(PI);
-      
-      if (this.backImg) {
-        image(this.backImg, 0, 0, this.w, this.h);
-      } else {
-        fill(200);
-        rect(0, 0, this.w, this.h);
-      }
-      
-      // + 아이콘
-      if (latestFlippedCard === this) {
-        let btnX = this.w/2 - 20; 
-        let btnY = this.h/2 - 20; 
-        
-        push();
-        translate(btnX, btnY, 5); 
-        stroke(0, 200); 
-        strokeWeight(1.0); 
-        strokeCap(SQUARE);
-        let size = 4; // 크기 4px로 작게
-        line(-size, 0, size, 0); 
-        line(0, -size, 0, size); 
-        pop();
-      }
-      pop();
-    } else {
-      // 앞면
-      if (this.frontImg) {
-        image(this.frontImg, 0, 0, this.w, this.h);
-      } else {
-        fill(255);
-        rect(0, 0, this.w, this.h);
-      }
-    }
-    pop();
   }
 
   flip() {
@@ -474,6 +418,84 @@ class BusinessCard {
     this.isDragging = false;
   }
 
+  contains(mx, my) {
+    let dx = mx - this.x;
+    let dy = my - this.y;
+    let cosA = cos(-this.angle);
+    let sinA = sin(-this.angle);
+    let unrotatedX = dx * cosA - dy * sinA;
+    let unrotatedY = dx * sinA + dy * cosA;
+    return (abs(unrotatedX) < this.w / 2 && abs(unrotatedY) < this.h / 2);
+  }
+
+  // --- [핵심 수정 부분] ---
+
+  display() {
+    push();
+    translate(this.x, this.y, this.z);
+    rotate(this.angle);
+
+    translate(this.flipAnchorX, this.flipAnchorY, 0);
+    rotateY(this.flipAngle);
+    translate(-this.flipAnchorX, -this.flipAnchorY, 0);
+
+    rectMode(CENTER);
+    imageMode(CENTER);
+
+    if (this.flipAngle > HALF_PI) {
+      // 뒷면
+      push();
+      rotateY(PI);
+      
+      if (this.backImg) {
+        image(this.backImg, 0, 0, this.w, this.h);
+      } else {
+        fill(200);
+        rect(0, 0, this.w, this.h);
+      }
+      
+      // [수정] + 아이콘 그리기
+      if (latestFlippedCard === this) {
+        let btnX = this.w/2 - 20; 
+        let btnY = this.h/2 - 20; 
+        
+        push();
+        translate(btnX, btnY, 5); 
+        
+        // [수정] 배경색에 반전되는 색상 계산
+        // this.backColor (p5 Color 객체)에서 r,g,b 추출
+        // 만약 backColor가 없다면 기본 검정/흰색 처리
+        let r = 255, g = 255, b = 255;
+        if (this.backColor) {
+           r = 255 - red(this.backColor);
+           g = 255 - green(this.backColor);
+           b = 255 - blue(this.backColor);
+        }
+        stroke(r, g, b); // 반전색 적용
+        
+        strokeWeight(1.5); 
+        strokeCap(SQUARE);
+        
+        // [수정] 크기 확대 (PC: 10px, 모바일: 8px)
+        let size = isMobileDevice ? 8 : 10;
+        
+        line(-size, 0, size, 0); 
+        line(0, -size, 0, size); 
+        pop();
+      }
+      pop();
+    } else {
+      // 앞면
+      if (this.frontImg) {
+        image(this.frontImg, 0, 0, this.w, this.h);
+      } else {
+        fill(255);
+        rect(0, 0, this.w, this.h);
+      }
+    }
+    pop();
+  }
+
   isPlusClicked(mx, my) {
     if (abs(this.flipAngle - PI) > 0.2) return false;
     if (latestFlippedCard !== this) return false;
@@ -485,23 +507,14 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // 터치 영역 (로컬 왼쪽)
+    // 터치 좌표 (기존 유지)
     let btnX = -this.w/2 + 20; 
     let btnY = this.h/2 - 20;
     
-    if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 30) {
+    // [수정] 터치 영역 대폭 확대 (30 -> 50)
+    if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 50) {
       return true;
     }
     return false;
-  }
-
-  contains(mx, my) {
-    let dx = mx - this.x;
-    let dy = my - this.y;
-    let cosA = cos(-this.angle);
-    let sinA = sin(-this.angle);
-    let unrotatedX = dx * cosA - dy * sinA;
-    let unrotatedY = dx * sinA + dy * cosA;
-    return (abs(unrotatedX) < this.w / 2 && abs(unrotatedY) < this.h / 2);
   }
 }
