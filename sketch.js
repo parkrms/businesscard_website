@@ -1,7 +1,9 @@
-// 1. 전역 변수 설정
+// ==========================================
+// 1. 전역 변수 및 설정
+// ==========================================
 let frontImages = []; // 앞면 이미지 배열
 let backImages = [];  // 뒷면 이미지 배열
-let shadowTexture;
+let shadowTexture;    // 그림자 텍스처
 let cards = [];
 let numCards = 10;
 let cardW, cardH; 
@@ -9,27 +11,39 @@ let cardW, cardH;
 let currentCard = null;
 let pressStartTime;
 let latestFlippedCard = null; 
+
+// 물리/인터랙션 설정
 let mouseSpeedThreshold = 100.0; 
 let shakeRadius; 
+
+// 모바일 감지
 let isMobileDevice = false;
+
+// 타이머 변수
 let lastReleaseTime = 0;
 let lastShakeTime = 0;
 let holdStartTime = 0;
 let isHolding = false;
 let holdDuration = 1500; 
+
+// 앱 모드 ('NORMAL', 'DETAIL')
 let appMode = 'NORMAL'; 
 let focusedCard = null; 
 let clickedArrowOnCard = null; 
 
+
+// ==========================================
+// 2. 초기화 (Preload & Setup)
+// ==========================================
 function preload() {
-  // [수정] 1번부터 10번까지 명함 이미지 로드
-  // business card 폴더 안에 1_front.png, 1_back.png 형식으로 있어야 함
+  // [중요] Vercel 로딩 문제 해결을 위해 폴더명을 'business_card'로 가정
+  // GitHub에서 폴더명을 'business card' -> 'business_card'로 꼭 변경해주세요!
   for (let i = 1; i <= numCards; i++) {
     try {
-      frontImages.push(loadImage(`business card/${i}_front.png`));
-      backImages.push(loadImage(`business card/${i}_back.png`));
+      frontImages.push(loadImage(`business_card/${i}_front.png`));
+      backImages.push(loadImage(`business_card/${i}_back.png`));
     } catch (e) {
-      console.error(`이미지 로드 실패: ${i}`, e);
+      console.error(`이미지 로드 실패 (파일명을 확인하세요): ${i}`, e);
     }
   }
 }
@@ -38,6 +52,7 @@ function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL);
   noStroke();
   
+  // 모바일 여부 체크
   isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
 
   if (isMobileDevice) {
@@ -49,7 +64,7 @@ function setup() {
 
   calculateCardDimensions();
   
-  // 그림자 텍스처
+  // 그림자 텍스처 생성
   let shadowTextureWidth = cardW * 1.5; 
   let shadowTextureHeight = cardH * 1.5; 
   shadowTexture = createGraphics(shadowTextureWidth, shadowTextureHeight);
@@ -64,15 +79,16 @@ function setup() {
     shadowTexture.rect(shadowTexture.width/2, shadowTexture.height/2, currentW, currentH, 20); 
   }
 
-  // 명함 생성 (각 카드에 고유한 ID와 이미지 부여)
+  // 명함 객체 생성 (이미지와 ID 전달)
   for (let i = 0; i < numCards; i++) {
     let safeMarginX = cardW * 0.1; 
     let safeMarginY = cardH * 0.1;
+    
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
     
-    // i는 0~9, 이미지는 배열에서 가져옴
+    // i는 0~9 (배열 인덱스이자 프로젝트 ID)
     cards.push(new BusinessCard(rX, rY, rAngle, frontImages[i], backImages[i], i));
   }
 }
@@ -84,13 +100,19 @@ function calculateCardDimensions() {
   shakeRadius = cardW * 0.8; 
 }
 
+
+// ==========================================
+// 3. 메인 렌더링 루프 (Draw)
+// ==========================================
 function draw() {
-  background(40); 
+  background(40); // 배경색
   lights(); 
   
+  // 정지된 카드 그리기
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue; 
+    
     if (!c.isDragging && !c.isFlipping) {
       push();
       translate(0, 0, i * 1); 
@@ -102,9 +124,11 @@ function draw() {
 
   drawingContext.clear(drawingContext.DEPTH_BUFFER_BIT);
 
+  // 움직이는 카드 그리기
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue;
+
     if (c.isDragging || c.isFlipping) {
       push();
       translate(0, 0, 10); 
@@ -115,6 +139,10 @@ function draw() {
   }
 }
 
+
+// ==========================================
+// 4. 상세 모드 전환
+// ==========================================
 function triggerDetailMode(card) {
   appMode = 'DETAIL';
   focusedCard = card;
@@ -123,7 +151,7 @@ function triggerDetailMode(card) {
   card.isDragging = false; 
   currentCard = null; 
 
-  // [핵심] HTML의 updateDetailContent 함수 호출 (현재 카드의 ID 전달)
+  // [핵심] HTML 함수 호출하여 내용 업데이트 (ID 전달)
   if (window.updateDetailContent) {
     window.updateDetailContent(card.id);
   }
@@ -145,7 +173,10 @@ window.closeDetail = function() {
   }, 400); 
 };
 
-// --- 입력 처리 ---
+
+// ==========================================
+// 5. 입력 처리 (통합)
+// ==========================================
 function touchStarted(e) {
   if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) return true; 
   if (touches.length > 0) {
@@ -165,6 +196,7 @@ function touchEnded(e) {
   handleInputEnd();
   return false;
 }
+
 function mousePressed() { handleInputStart(mouseX, mouseY); }
 function mouseDragged() { handleInputMove(mouseX, mouseY); }
 function mouseReleased() { handleInputEnd(); }
@@ -226,6 +258,7 @@ function handleInputEnd() {
   }
 }
 
+// PC 흔들기
 function mouseMoved() {
   if (isMobileDevice) return; 
   if (appMode === 'DETAIL') return;
@@ -252,10 +285,12 @@ function mouseMoved() {
   }
 }
 
+// 모바일 흔들기
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
   if (millis() - lastShakeTime < 300) return;
+  
   lastShakeTime = millis();
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
@@ -286,7 +321,9 @@ function lerpAngle(from, to, amt) {
 }
 
 
+// ==========================================
 // 6. BusinessCard 클래스
+// ==========================================
 class BusinessCard {
   constructor(tempX, tempY, tempAngle, frontImg, backImg, id) {
     this.x = tempX;
@@ -296,10 +333,10 @@ class BusinessCard {
     this.h = cardH;
     this.angle = tempAngle;
     
-    // [수정] 이미지 및 ID 저장
+    // 이미지 및 ID 할당
     this.frontImg = frontImg;
     this.backImg = backImg;
-    this.id = id; // 0~9
+    this.id = id; 
 
     this.isDragging = false;
     this.dragOffsetX = 0;
@@ -373,15 +410,14 @@ class BusinessCard {
     imageMode(CENTER);
 
     if (this.flipAngle > HALF_PI) {
-      // 뒷면 그리기
+      // 뒷면
       push();
       rotateY(PI);
       
-      // [수정] 뒷면 이미지 그리기
       if (this.backImg) {
         image(this.backImg, 0, 0, this.w, this.h);
       } else {
-        fill(200); // 이미지 로드 실패 시 회색
+        fill(200);
         rect(0, 0, this.w, this.h);
       }
       
@@ -395,14 +431,14 @@ class BusinessCard {
         stroke(0, 200); 
         strokeWeight(1.0); 
         strokeCap(SQUARE);
-        let size = 4; 
+        let size = 4; // 크기 4px로 작게
         line(-size, 0, size, 0); 
         line(0, -size, 0, size); 
         pop();
       }
       pop();
     } else {
-      // 앞면 그리기
+      // 앞면
       if (this.frontImg) {
         image(this.frontImg, 0, 0, this.w, this.h);
       } else {
@@ -449,6 +485,7 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
+    // 터치 영역 (로컬 왼쪽)
     let btnX = -this.w/2 + 20; 
     let btnY = this.h/2 - 20;
     
