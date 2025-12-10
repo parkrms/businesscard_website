@@ -16,22 +16,31 @@
     
     <style>
       /* --- [RESET & BASE] --- */
-      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+      * { 
+        box-sizing: border-box; margin: 0; padding: 0; 
+        -webkit-tap-highlight-color: transparent;
+      }
       :root { --app-height: 100dvh; }
       html { background-color: #050505; overscroll-behavior: none; }
       
       body {
         position: fixed; inset: 0; width: 100%; height: var(--app-height); 
         overflow: hidden;
-        background-color: #050505; 
+        /* [수정] 배경색 더 어둡게 (20) - sketch.js와 통일 */
+        background-color: #141414; 
         font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
         color: #e0e0e0;
+        
+        /* [핵심] 우클릭/드래그/선택 방지 (저장 방지) */
         touch-action: none; 
         user-select: none; -webkit-user-select: none;
+        -webkit-touch-callout: none; /* iOS 롱프레스 메뉴 차단 */
+        
         padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
       
-      canvas { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; outline: none; }
+      /* 캔버스 우클릭 방지 */
+      canvas { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; outline: none; pointer-events: auto; }
 
       /* --- [닫기 버튼] --- */
       #global-close-btn {
@@ -45,6 +54,7 @@
         backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
         border-radius: 50%; transition: all 0.3s ease;
         touch-action: manipulation;
+        -webkit-user-select: none;
       }
       #global-close-btn.visible { display: flex; animation: fadeIn 0.5s ease; }
       #global-close-btn:active { transform: translateX(-50%) scale(0.9); background: rgba(255, 255, 255, 0.2); }
@@ -87,6 +97,8 @@
         position: sticky; top: 100px; height: fit-content;
         display: flex; flex-direction: column; 
         color: #fff; text-align: left;
+        /* 텍스트 선택 가능하게 하려면 auto, 막으려면 none */
+        user-select: text; -webkit-user-select: text; 
       }
       .meta-data { 
         font-size: 13px; color: #666; margin-bottom: 25px; 
@@ -106,9 +118,16 @@
       /* 오른쪽 섹션 */
       .right-section { width: 65%; padding-left: 20px; }
       .image-list { display: flex; flex-direction: column; gap: 40px; width: 100%; }
+      
+      /* [핵심] 이미지 저장 방지 스타일 */
       .detail-image {
         width: 100%; height: auto; display: block;
         border-radius: 4px; background-color: #111;
+        /* 이미지 드래그 방지 */
+        pointer-events: none; 
+        /* iOS 롱프레스 방지 */
+        -webkit-touch-callout: none;
+        user-select: none; -webkit-user-select: none;
       }
 
       /* --- [? 버튼] --- */
@@ -124,6 +143,7 @@
         cursor: pointer; z-index: 50;
         transition: all 0.3s ease; touch-action: manipulation;
         color: white; font-size: 20px; font-weight: 600;
+        -webkit-user-select: none;
       }
       #help-btn span { mix-blend-mode: difference; }
       #help-btn:active { transform: translateX(-50%) scale(0.95); background: rgba(255, 255, 255, 0.25); }
@@ -149,12 +169,13 @@
         text-shadow: 0 2px 10px rgba(0,0,0,0.5); 
       }
       
+      /* [수정] 흔들림 애니메이션 (매우 미세하게) */
       @keyframes shakeText {
         0% { transform: translate(0, 0) rotate(0deg); }
-        25% { transform: translate(0.5px, 0.5px) rotate(0.5deg); }
-        50% { transform: translate(-0.5px, -0.5px) rotate(-0.5deg); }
-        75% { transform: translate(-0.5px, 0.5px) rotate(0.2deg); }
-        100% { transform: translate(0.5px, -0.5px) rotate(-0.2deg); }
+        25% { transform: translate(0.3px, 0.3px) rotate(0.3deg); }
+        50% { transform: translate(-0.3px, -0.3px) rotate(-0.3deg); }
+        75% { transform: translate(-0.3px, 0.3px) rotate(0.1deg); }
+        100% { transform: translate(0.3px, -0.3px) rotate(-0.1deg); }
       }
       
       .shaking-text {
@@ -179,16 +200,14 @@
         }
         .project-title { font-size: 32px; margin-bottom: 20px; }
         .desc-kr, .desc-en { font-size: 15px; max-width: 100%; }
-        
         .right-section { width: 100%; padding-left: 0; }
         .image-list { gap: 20px; }
-        
         .instruction-container { flex-direction: column; gap: 30px; }
         .inst-item { font-size: 14px; }
       }
     </style>
   </head>
-  <body>
+  <body oncontextmenu="return false;">
     <div id="global-close-btn" onclick="closeDetail()">
       <div class="icon-x"></div>
     </div>
@@ -236,16 +255,12 @@
         const folderNum = index + 1;
         document.getElementById('p-year').innerText = p.year;
         document.getElementById('p-title').innerText = p.title;
-        
         const descBox = document.getElementById('p-desc-box');
-        if (!p.kr && !p.en) { 
-          descBox.style.display = 'none'; 
-        } else {
+        if (!p.kr && !p.en) { descBox.style.display = 'none'; } else {
           descBox.style.display = 'block';
           document.getElementById('p-desc-kr').innerText = p.kr;
           document.getElementById('p-desc-en').innerText = p.en;
         }
-
         const imgContainer = document.getElementById('p-image-list');
         imgContainer.innerHTML = ''; 
         for (let i = 1; i <= p.imgCount; i++) {
@@ -253,6 +268,8 @@
           img.src = `${folderNum}/${folderNum}_${i}.jpg`; 
           img.className = 'detail-image';
           img.onerror = function() { this.style.display = 'none'; };
+          // [수정] 우클릭 방지 이벤트 추가
+          img.oncontextmenu = function() { return false; };
           imgContainer.appendChild(img);
         }
         document.getElementById('detail-layer').scrollTop = 0;
@@ -268,19 +285,12 @@
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
       function renderHelp() {
-        if (isMobile) {
-          instContainer.innerHTML = `
-            <div class="inst-item">Drag</div>
-            <div class="inst-item">Tap</div>
-            <div class="inst-item">Shake the <span class="shaking-text">Phone</span></div>
-          `;
-        } else {
-          instContainer.innerHTML = `
-            <div class="inst-item">Drag</div>
-            <div class="inst-item">Click</div>
-            <div class="inst-item">Shake the <span class="shaking-text">Cursor</span></div>
-          `;
-        }
+        // [수정] 텍스트 통일 (Shake) & 애니메이션
+        instContainer.innerHTML = `
+          <div class="inst-item">Drag</div>
+          <div class="inst-item">${isMobile ? 'Tap' : 'Click'}</div>
+          <div class="inst-item"><span class="shaking-text">Shake</span></div>
+        `;
       }
 
       helpBtn.addEventListener('click', (e) => {
