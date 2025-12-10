@@ -103,7 +103,7 @@ function calculateCardDimensions() {
 // 3. 메인 렌더링 루프 (Draw)
 // ==========================================
 function draw() {
-  background(40); 
+  background(20); 
   lights(); 
   
   for (let i = 0; i < cards.length; i++) {
