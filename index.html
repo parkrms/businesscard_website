@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Portfolio">
@@ -17,11 +16,9 @@
     <style>
       /* --- [RESET & BASE] --- */
       * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-      
       :root { --app-height: 100dvh; }
-
       html { background-color: #050505; overscroll-behavior: none; }
-
+      
       body {
         position: fixed; inset: 0; width: 100%; height: var(--app-height); 
         overflow: hidden;
@@ -35,10 +32,13 @@
       
       canvas { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; outline: none; }
 
-      /* --- [닫기 버튼] --- */
+      /* --- [닫기 버튼 (위치 수정됨: 하단 중앙)] --- */
       #global-close-btn {
         position: fixed; 
-        top: calc(20px + env(safe-area-inset-top)); right: calc(20px + env(safe-area-inset-right));
+        /* 상단 우측에서 -> 하단 중앙으로 이동 */
+        bottom: calc(30px + env(safe-area-inset-bottom)); 
+        left: 50%; 
+        transform: translateX(-50%);
         width: 50px; height: 50px; z-index: 9999;
         cursor: pointer; display: none; 
         align-items: center; justify-content: center;
@@ -48,7 +48,7 @@
         touch-action: manipulation;
       }
       #global-close-btn.visible { display: flex; animation: fadeIn 0.5s ease; }
-      #global-close-btn:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.2); }
+      #global-close-btn:active { transform: translateX(-50%) scale(0.9); background: rgba(255, 255, 255, 0.2); }
       
       .icon-x { position: relative; width: 14px; height: 14px; }
       .icon-x::before, .icon-x::after {
@@ -72,7 +72,7 @@
       #content-wrapper {
         width: 100%; min-height: 100%;
         padding-top: calc(80px + env(safe-area-inset-top));
-        padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        padding-bottom: calc(100px + env(safe-area-inset-bottom)); /* 하단 닫기버튼 공간 확보 */
         padding-left: calc(40px + env(safe-area-inset-left));
         padding-right: calc(40px + env(safe-area-inset-right));
         display: flex; flex-direction: row; 
@@ -93,17 +93,24 @@
         font-size: 13px; color: #666; margin-bottom: 25px; 
         display: flex; gap: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;
       }
+      /* [수정] 제목 폰트 굵기 보통, 크기 축소 */
       .project-title { 
-        font-size: 48px; font-weight: 700; margin-bottom: 40px; 
-        line-height: 1.1; letter-spacing: -0.5px; color: #fff; 
+        font-size: 36px; /* 48 -> 36 */
+        font-weight: 400; /* 700 -> 400 */
+        margin-bottom: 40px; 
+        line-height: 1.2; letter-spacing: -0.5px; color: #fff; 
         white-space: pre-line; 
       }
       .description-box { margin-bottom: 40px; }
-      .desc-kr { 
-        font-size: 16px; line-height: 1.8; color: #ddd; margin-bottom: 20px; font-weight: 400; word-break: keep-all; 
-      }
-      .desc-en { 
-        font-size: 15px; line-height: 1.6; color: #777; font-weight: 400; 
+      
+      /* [수정] 한글, 영어 설명 스타일 통일 */
+      .desc-kr, .desc-en { 
+        font-size: 16px; 
+        line-height: 1.8; 
+        color: #ddd; 
+        margin-bottom: 20px; 
+        font-weight: 400; 
+        word-break: keep-all; 
       }
 
       /* 오른쪽 섹션 (이미지) */
@@ -161,7 +168,7 @@
       @media (max-width: 900px) {
         #content-wrapper { 
           flex-direction: column; 
-          padding: 80px 20px 60px 20px; 
+          padding: 80px 20px 80px 20px; /* 하단 패딩 넉넉히 */
           padding-top: calc(80px + env(safe-area-inset-top));
         }
         .left-section { 
@@ -171,7 +178,7 @@
           padding-bottom: 40px; 
         }
         .project-title { font-size: 32px; margin-bottom: 20px; }
-        .desc-kr { font-size: 15px; }
+        .desc-kr, .desc-en { font-size: 15px; max-width: 100%; }
         
         .right-section { width: 100%; padding-left: 0; }
         .image-list { gap: 20px; }
@@ -191,8 +198,7 @@
         <div class="left-section">
           <div class="meta-data">
             <span id="p-year">2025</span>
-            <span>Webgl</span>
-          </div>
+            </div>
           <div class="project-title" id="p-title">Title</div>
           <div class="description-box" id="p-desc-box">
             <div class="desc-kr" id="p-desc-kr"></div>
@@ -215,7 +221,6 @@
     </div>
 
     <script>
-      // [데이터] 프로젝트 정보 및 이미지 개수
       const projects = [
         {
           id: 1, year: "2023", title: "Two Holes Watch", imgCount: 6,
@@ -269,7 +274,6 @@
         }
       ];
 
-      // --- [상세 페이지 내용 업데이트] ---
       window.updateDetailContent = function(index) {
         const p = projects[index]; // 0 ~ 9
         const folderNum = index + 1; // 1 ~ 10
@@ -290,8 +294,6 @@
         const imgContainer = document.getElementById('p-image-list');
         imgContainer.innerHTML = ''; 
 
-        // [수정] 각 프로젝트별 이미지 개수(imgCount)만큼 루프
-        // 파일명: {folderNum}/{folderNum}_{i}.jpg
         for (let i = 1; i <= p.imgCount; i++) {
           const img = document.createElement('img');
           img.src = `${folderNum}/${folderNum}_${i}.jpg`; 
@@ -300,7 +302,6 @@
           imgContainer.appendChild(img);
         }
         
-        // 스크롤 초기화
         document.getElementById('detail-layer').scrollTop = 0;
       };
 
