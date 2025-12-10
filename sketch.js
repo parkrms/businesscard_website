@@ -1,32 +1,35 @@
 // ==========================================
 // 1. 전역 변수 및 설정
 // ==========================================
-let frontImages = []; // 앞면 이미지 배열
-let backImages = [];  // 뒷면 이미지 배열
-let shadowTexture;    // 그림자 텍스처
+let frontImages = []; 
+let backImages = [];  
+let shadowTexture;    
 let cards = [];
 let numCards = 10;
 let cardW, cardH; 
+
+let backColorsHex = [
+  "#FFB4B4", "#FFDCB4", "#FFFFB4", "#DCFFB4", "#B4FFB4",
+  "#B4FFDC", "#B4FFFF", "#B4DCFF", "#B4B4FF", "#DCB4FF"
+];
+let backColors = [];
 
 let currentCard = null;
 let pressStartTime;
 let latestFlippedCard = null; 
 
-// 물리/인터랙션 설정
-let mouseSpeedThreshold = 400.0; 
+// PC 흔들기 역치 (500)
+let mouseSpeedThreshold = 500.0; 
 let shakeRadius; 
 
-// 모바일 감지
 let isMobileDevice = false;
 
-// 타이머 변수
 let lastReleaseTime = 0;
 let lastShakeTime = 0;
 let holdStartTime = 0;
 let isHolding = false;
 let holdDuration = 1500; 
 
-// 앱 모드 ('NORMAL', 'DETAIL')
 let appMode = 'NORMAL'; 
 let focusedCard = null; 
 let clickedArrowOnCard = null; 
@@ -36,8 +39,6 @@ let clickedArrowOnCard = null;
 // 2. 초기화 (Preload & Setup)
 // ==========================================
 function preload() {
-  // [중요] Vercel 로딩 문제 해결을 위해 폴더명을 'business_card'로 가정
-  // GitHub에서 폴더명을 'business card' -> 'business_card'로 꼭 변경해주세요!
   for (let i = 1; i <= numCards; i++) {
     try {
       frontImages.push(loadImage(`business_card/${i}_front.png`));
@@ -52,7 +53,6 @@ function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL);
   noStroke();
   
-  // 모바일 여부 체크
   isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth < 800;
 
   if (isMobileDevice) {
@@ -64,7 +64,7 @@ function setup() {
 
   calculateCardDimensions();
   
-  // 그림자 텍스처 생성
+  // 그림자
   let shadowTextureWidth = cardW * 1.5; 
   let shadowTextureHeight = cardH * 1.5; 
   shadowTexture = createGraphics(shadowTextureWidth, shadowTextureHeight);
@@ -79,16 +79,16 @@ function setup() {
     shadowTexture.rect(shadowTexture.width/2, shadowTexture.height/2, currentW, currentH, 20); 
   }
 
-  // 명함 객체 생성 (이미지와 ID 전달)
+  for (let hex of backColorsHex) {
+    backColors.push(color(hex));
+  }
+
   for (let i = 0; i < numCards; i++) {
     let safeMarginX = cardW * 0.1; 
     let safeMarginY = cardH * 0.1;
-    
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
-    
-    // i는 0~9 (배열 인덱스이자 프로젝트 ID)
     cards.push(new BusinessCard(rX, rY, rAngle, frontImages[i], backImages[i], i));
   }
 }
@@ -105,14 +105,12 @@ function calculateCardDimensions() {
 // 3. 메인 렌더링 루프 (Draw)
 // ==========================================
 function draw() {
-  background(40); // 배경색
+  background(40); 
   lights(); 
   
-  // 정지된 카드 그리기
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue; 
-    
     if (!c.isDragging && !c.isFlipping) {
       push();
       translate(0, 0, i * 1); 
@@ -124,11 +122,9 @@ function draw() {
 
   drawingContext.clear(drawingContext.DEPTH_BUFFER_BIT);
 
-  // 움직이는 카드 그리기
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue;
-
     if (c.isDragging || c.isFlipping) {
       push();
       translate(0, 0, 10); 
@@ -141,7 +137,7 @@ function draw() {
 
 
 // ==========================================
-// 4. 상세 모드 전환
+// 4. 모드 전환
 // ==========================================
 function triggerDetailMode(card) {
   appMode = 'DETAIL';
@@ -151,7 +147,6 @@ function triggerDetailMode(card) {
   card.isDragging = false; 
   currentCard = null; 
 
-  // [핵심] HTML 함수 호출하여 내용 업데이트 (ID 전달)
   if (window.updateDetailContent) {
     window.updateDetailContent(card.id);
   }
@@ -175,7 +170,7 @@ window.closeDetail = function() {
 
 
 // ==========================================
-// 5. 입력 처리 (통합)
+// 5. 입력 처리
 // ==========================================
 function touchStarted(e) {
   if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) return true; 
@@ -320,14 +315,11 @@ function lerpAngle(from, to, amt) {
   return from + diff * amt;
 }
 
-// ... (1~4 섹션은 이전 V25와 동일) ...
 
 // ==========================================
-// 6. BusinessCard 클래스 수정 (display, isPlusClicked)
+// 6. BusinessCard 클래스
 // ==========================================
 class BusinessCard {
-  // ... (constructor, update, applyForce, flip, drag 함수 등은 동일) ...
-  
   constructor(tempX, tempY, tempAngle, frontImg, backImg, id) {
     this.x = tempX;
     this.y = tempY;
@@ -335,7 +327,9 @@ class BusinessCard {
     this.w = cardW; 
     this.h = cardH;
     this.angle = tempAngle;
-    this.backColor = backColors[id % backColors.length]; // 색상 참조를 위해 다시 명시
+    
+    // [중요] backColors 배열에서 색상 가져오기 (오류 수정됨)
+    this.backColor = backColors[id % backColors.length];
     
     this.frontImg = frontImg;
     this.backImg = backImg;
@@ -360,9 +354,7 @@ class BusinessCard {
     this.angleDamping = 0.90; 
   }
 
-  // ... (update, applyForce, flip, drag 함수들은 위와 동일) ...
   update() {
-    // V25 코드와 동일하게 유지
     if (this.isDragging) {
       this.z = lerp(this.z, 10.0, 0.2);
       let targetAngle = 0.0;
@@ -370,14 +362,21 @@ class BusinessCard {
       this.velX = 0; this.velY = 0; this.angleVel = 0;
     } else {
       this.z = lerp(this.z, 0.0, 0.1);
-      this.x += this.velX; this.y += this.velY; this.angle += this.angleVel;
-      this.velX *= this.damping; this.velY *= this.damping; this.angleVel *= this.angleDamping;
-      let boundW = width/2 - this.w/2; let boundH = height/2 - this.h/2;
+      this.x += this.velX;
+      this.y += this.velY;
+      this.angle += this.angleVel;
+      this.velX *= this.damping;
+      this.velY *= this.damping;
+      this.angleVel *= this.angleDamping;
+
+      let boundW = width/2 - this.w/2;
+      let boundH = height/2 - this.h/2;
       if (this.x < -boundW) { this.x = -boundW; this.velX *= -0.5; }
       if (this.x > boundW) { this.x = boundW; this.velX *= -0.5; }
       if (this.y < -boundH) { this.y = -boundH; this.velY *= -0.5; }
       if (this.y > boundH) { this.y = boundH; this.velY *= -0.5; }
     }
+
     if (this.isFlipping) {
       this.flipAngle = lerp(this.flipAngle, this.flipTarget, this.flipSpeed);
       if (abs(this.flipAngle - this.flipTarget) < 0.01) {
@@ -389,8 +388,76 @@ class BusinessCard {
 
   applyForce(fX, fY, aVel) {
     if (!this.isDragging && appMode === 'NORMAL') {
-      this.velX += fX; this.velY += fY; this.angleVel += aVel;
+      this.velX += fX;
+      this.velY += fY;
+      this.angleVel += aVel;
     }
+  }
+
+  display() {
+    push();
+    translate(this.x, this.y, this.z);
+    rotate(this.angle);
+
+    translate(this.flipAnchorX, this.flipAnchorY, 0);
+    rotateY(this.flipAngle);
+    translate(-this.flipAnchorX, -this.flipAnchorY, 0);
+
+    rectMode(CENTER);
+    imageMode(CENTER);
+
+    if (this.flipAngle > HALF_PI) {
+      // 뒷면
+      push();
+      rotateY(PI);
+      
+      if (this.backImg) {
+        image(this.backImg, 0, 0, this.w, this.h);
+      } else {
+        fill(200);
+        rect(0, 0, this.w, this.h);
+      }
+      
+      // + 아이콘
+      if (latestFlippedCard === this) {
+        // [수정] 아이콘 위치: 시각적 오른쪽 (로컬 왼쪽)
+        // this.w/2 가 아니라 -this.w/2 를 기준으로 함
+        let btnX = -this.w/2 + 20; 
+        let btnY = this.h/2 - 20; 
+        
+        push();
+        translate(btnX, btnY, 5); 
+        
+        // [수정] 배경색에 반전되는 색상 계산
+        let r = 255, g = 255, b = 255;
+        if (this.backColor) {
+           r = 255 - red(this.backColor);
+           g = 255 - green(this.backColor);
+           b = 255 - blue(this.backColor);
+        }
+        stroke(r, g, b); // 반전색
+        
+        strokeWeight(1.5); 
+        strokeCap(SQUARE);
+        
+        // [수정] 크기 확대
+        let size = isMobileDevice ? 8 : 10;
+        
+        line(-size, 0, size, 0); 
+        line(0, -size, 0, size); 
+        pop();
+      }
+      pop();
+    } else {
+      // 앞면
+      if (this.frontImg) {
+        image(this.frontImg, 0, 0, this.w, this.h);
+      } else {
+        fill(255);
+        rect(0, 0, this.w, this.h);
+      }
+    }
+    pop();
   }
 
   flip() {
@@ -418,84 +485,6 @@ class BusinessCard {
     this.isDragging = false;
   }
 
-  contains(mx, my) {
-    let dx = mx - this.x;
-    let dy = my - this.y;
-    let cosA = cos(-this.angle);
-    let sinA = sin(-this.angle);
-    let unrotatedX = dx * cosA - dy * sinA;
-    let unrotatedY = dx * sinA + dy * cosA;
-    return (abs(unrotatedX) < this.w / 2 && abs(unrotatedY) < this.h / 2);
-  }
-
-  // --- [핵심 수정 부분] ---
-
-  display() {
-    push();
-    translate(this.x, this.y, this.z);
-    rotate(this.angle);
-
-    translate(this.flipAnchorX, this.flipAnchorY, 0);
-    rotateY(this.flipAngle);
-    translate(-this.flipAnchorX, -this.flipAnchorY, 0);
-
-    rectMode(CENTER);
-    imageMode(CENTER);
-
-    if (this.flipAngle > HALF_PI) {
-      // 뒷면
-      push();
-      rotateY(PI);
-      
-      if (this.backImg) {
-        image(this.backImg, 0, 0, this.w, this.h);
-      } else {
-        fill(200);
-        rect(0, 0, this.w, this.h);
-      }
-      
-      // [수정] + 아이콘 그리기
-      if (latestFlippedCard === this) {
-        let btnX = this.w/2 - 20; 
-        let btnY = this.h/2 - 20; 
-        
-        push();
-        translate(btnX, btnY, 5); 
-        
-        // [수정] 배경색에 반전되는 색상 계산
-        // this.backColor (p5 Color 객체)에서 r,g,b 추출
-        // 만약 backColor가 없다면 기본 검정/흰색 처리
-        let r = 255, g = 255, b = 255;
-        if (this.backColor) {
-           r = 255 - red(this.backColor);
-           g = 255 - green(this.backColor);
-           b = 255 - blue(this.backColor);
-        }
-        stroke(r, g, b); // 반전색 적용
-        
-        strokeWeight(1.5); 
-        strokeCap(SQUARE);
-        
-        // [수정] 크기 확대 (PC: 10px, 모바일: 8px)
-        let size = isMobileDevice ? 8 : 10;
-        
-        line(-size, 0, size, 0); 
-        line(0, -size, 0, size); 
-        pop();
-      }
-      pop();
-    } else {
-      // 앞면
-      if (this.frontImg) {
-        image(this.frontImg, 0, 0, this.w, this.h);
-      } else {
-        fill(255);
-        rect(0, 0, this.w, this.h);
-      }
-    }
-    pop();
-  }
-
   isPlusClicked(mx, my) {
     if (abs(this.flipAngle - PI) > 0.2) return false;
     if (latestFlippedCard !== this) return false;
@@ -507,14 +496,25 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // 터치 좌표 (기존 유지)
+    // [수정] 터치 영역 좌표 (아이콘과 일치시킴: 로컬 왼쪽)
     let btnX = -this.w/2 + 20; 
     let btnY = this.h/2 - 20;
     
-    // [수정] 터치 영역 대폭 확대 (30 -> 50)
+    // [수정] 터치 영역 확대 (50px)
+    // -unrotatedX (부호 반전)
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 50) {
       return true;
     }
     return false;
+  }
+
+  contains(mx, my) {
+    let dx = mx - this.x;
+    let dy = my - this.y;
+    let cosA = cos(-this.angle);
+    let sinA = sin(-this.angle);
+    let unrotatedX = dx * cosA - dy * sinA;
+    let unrotatedY = dx * sinA + dy * cosA;
+    return (abs(unrotatedX) < this.w / 2 && abs(unrotatedY) < this.h / 2);
   }
 }
