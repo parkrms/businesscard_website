@@ -44,7 +44,7 @@ function preload() {
       frontImages.push(loadImage(`business_card/${i}_front.png`));
       backImages.push(loadImage(`business_card/${i}_back.png`));
     } catch (e) {
-      console.error(`이미지 로드 실패 (파일명을 확인하세요): ${i}`, e);
+      console.error(`이미지 로드 실패: ${i}`, e);
     }
   }
 }
@@ -328,7 +328,7 @@ class BusinessCard {
     this.h = cardH;
     this.angle = tempAngle;
     
-    // [중요] backColors 배열에서 색상 가져오기 (오류 수정됨)
+    // 색상 할당
     this.backColor = backColors[id % backColors.length];
     
     this.frontImg = frontImg;
@@ -420,27 +420,25 @@ class BusinessCard {
       
       // + 아이콘
       if (latestFlippedCard === this) {
-        // [수정] 아이콘 위치: 시각적 오른쪽 (로컬 왼쪽)
-        // this.w/2 가 아니라 -this.w/2 를 기준으로 함
-        let btnX = -this.w/2 + 20; 
-        let btnY = this.h/2 - 20; 
+        // [수정] 여백 20->35로 증가 (더 안쪽으로)
+        let btnX = this.w/2 - 35; 
+        let btnY = this.h/2 - 35; 
         
         push();
         translate(btnX, btnY, 5); 
         
-        // [수정] 배경색에 반전되는 색상 계산
+        // 색상 반전
         let r = 255, g = 255, b = 255;
         if (this.backColor) {
            r = 255 - red(this.backColor);
            g = 255 - green(this.backColor);
            b = 255 - blue(this.backColor);
         }
-        stroke(r, g, b); // 반전색
+        stroke(r, g, b); 
         
         strokeWeight(1.5); 
         strokeCap(SQUARE);
         
-        // [수정] 크기 확대
         let size = isMobileDevice ? 8 : 10;
         
         line(-size, 0, size, 0); 
@@ -496,12 +494,11 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // [수정] 터치 영역 좌표 (아이콘과 일치시킴: 로컬 왼쪽)
-    let btnX = -this.w/2 + 20; 
-    let btnY = this.h/2 - 20;
+    // [수정] 터치 영역도 35px로 이동 (아이콘과 동기화)
+    let btnX = -this.w/2 + 35; 
+    let btnY = this.h/2 - 35;
     
-    // [수정] 터치 영역 확대 (50px)
-    // -unrotatedX (부호 반전)
+    // 터치 영역 반경 50px
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 50) {
       return true;
     }
