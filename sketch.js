@@ -1,4 +1,6 @@
+// ==========================================
 // 1. 전역 변수 및 설정
+// ==========================================
 let frontImages = []; 
 let backImages = [];  
 let shadowTexture;    
@@ -416,8 +418,12 @@ class BusinessCard {
       if (latestFlippedCard === this) {
         // [비율 계산] 여백과 크기를 명함 크기(this.w)에 비례하게 설정
         let padding = this.w * 0.08; // 명함 너비의 8% 여백
-        let iconSize = this.w * 0.03; // 명함 너비의 3% 크기
-        let lineThick = max(1, this.w * 0.004); // 최소 1px, 비율따라 두꺼워짐
+        
+        // [수정] 아이콘 크기 조정: PC는 작게(0.025), 모바일은 크게(0.04)
+        let ratio = isMobileDevice ? 0.04 : 0.025;
+        let iconSize = this.w * ratio; 
+        
+        let lineThick = max(1, this.w * 0.004); // 최소 1px
 
         let btnX = this.w/2 - padding; 
         let btnY = this.h/2 - padding; 
