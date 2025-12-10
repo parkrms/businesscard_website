@@ -1,44 +1,36 @@
 // 1. 전역 변수 설정
-let cardFrontImage;
+let frontImages = []; // 앞면 이미지 배열
+let backImages = [];  // 뒷면 이미지 배열
 let shadowTexture;
 let cards = [];
 let numCards = 10;
 let cardW, cardH; 
 
-let backColorsHex = [
-  "#FFB4B4", "#FFDCB4", "#FFFFB4", "#DCFFB4", "#B4FFB4",
-  "#B4FFDC", "#B4FFFF", "#B4DCFF", "#B4B4FF", "#DCB4FF"
-];
-let backColors = [];
-
 let currentCard = null;
 let pressStartTime;
-
-// 가장 최근에 뒤집힌 카드
 let latestFlippedCard = null; 
-
-// PC 마우스 흔들기 감도
 let mouseSpeedThreshold = 100.0; 
 let shakeRadius; 
-
 let isMobileDevice = false;
-
 let lastReleaseTime = 0;
 let lastShakeTime = 0;
-
 let holdStartTime = 0;
 let isHolding = false;
 let holdDuration = 1500; 
 let appMode = 'NORMAL'; 
 let focusedCard = null; 
-
 let clickedArrowOnCard = null; 
 
 function preload() {
-  try {
-    cardFrontImage = loadImage("Asset 2.png");
-  } catch (e) {
-    console.error("이미지 로드 실패", e);
+  // [수정] 1번부터 10번까지 명함 이미지 로드
+  // business card 폴더 안에 1_front.png, 1_back.png 형식으로 있어야 함
+  for (let i = 1; i <= numCards; i++) {
+    try {
+      frontImages.push(loadImage(`business card/${i}_front.png`));
+      backImages.push(loadImage(`business card/${i}_back.png`));
+    } catch (e) {
+      console.error(`이미지 로드 실패: ${i}`, e);
+    }
   }
 }
 
@@ -72,18 +64,16 @@ function setup() {
     shadowTexture.rect(shadowTexture.width/2, shadowTexture.height/2, currentW, currentH, 20); 
   }
 
-  for (let hex of backColorsHex) {
-    backColors.push(color(hex));
-  }
-
-  // 명함 배치
+  // 명함 생성 (각 카드에 고유한 ID와 이미지 부여)
   for (let i = 0; i < numCards; i++) {
     let safeMarginX = cardW * 0.1; 
     let safeMarginY = cardH * 0.1;
     let rX = random(-width/2 + safeMarginX, width/2 - safeMarginX);
     let rY = random(-height/2 + safeMarginY, height/2 - safeMarginY);
     let rAngle = random(TWO_PI);
-    cards.push(new BusinessCard(rX, rY, rAngle, backColors[i % backColors.length]));
+    
+    // i는 0~9, 이미지는 배열에서 가져옴
+    cards.push(new BusinessCard(rX, rY, rAngle, frontImages[i], backImages[i], i));
   }
 }
 
@@ -98,11 +88,9 @@ function draw() {
   background(40); 
   lights(); 
   
-  // 카드 그리기
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue; 
-    
     if (!c.isDragging && !c.isFlipping) {
       push();
       translate(0, 0, i * 1); 
@@ -117,7 +105,6 @@ function draw() {
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
     if (c === focusedCard) continue;
-
     if (c.isDragging || c.isFlipping) {
       push();
       translate(0, 0, 10); 
@@ -135,6 +122,11 @@ function triggerDetailMode(card) {
   card.stopDrag(); 
   card.isDragging = false; 
   currentCard = null; 
+
+  // [핵심] HTML의 updateDetailContent 함수 호출 (현재 카드의 ID 전달)
+  if (window.updateDetailContent) {
+    window.updateDetailContent(card.id);
+  }
 
   document.getElementById('detail-layer').classList.add('active');
   document.getElementById('global-close-btn').classList.add('visible');
@@ -154,7 +146,6 @@ window.closeDetail = function() {
 };
 
 // --- 입력 처리 ---
-
 function touchStarted(e) {
   if (appMode === 'DETAIL' || (e.target && e.target.tagName !== 'CANVAS')) return true; 
   if (touches.length > 0) {
@@ -174,16 +165,9 @@ function touchEnded(e) {
   handleInputEnd();
   return false;
 }
-
-function mousePressed() {
-  handleInputStart(mouseX, mouseY);
-}
-function mouseDragged() {
-  handleInputMove(mouseX, mouseY);
-}
-function mouseReleased() {
-  handleInputEnd();
-}
+function mousePressed() { handleInputStart(mouseX, mouseY); }
+function mouseDragged() { handleInputMove(mouseX, mouseY); }
+function mouseReleased() { handleInputEnd(); }
 
 function handleInputStart(x, y) {
   if (appMode === 'DETAIL') return; 
@@ -226,13 +210,11 @@ function handleInputMove(x, y) {
 
 function handleInputEnd() {
   if (appMode === 'DETAIL') return;
-  
   if (clickedArrowOnCard) {
     triggerDetailMode(clickedArrowOnCard);
     clickedArrowOnCard = null;
     return;
   }
-
   if (currentCard != null) {
     let duration = millis() - pressStartTime;
     if (duration < 200) {
@@ -244,7 +226,6 @@ function handleInputEnd() {
   }
 }
 
-// PC 마우스 흔들기
 function mouseMoved() {
   if (isMobileDevice) return; 
   if (appMode === 'DETAIL') return;
@@ -254,7 +235,6 @@ function mouseMoved() {
 
   if (mouseSpeed > mouseSpeedThreshold) {
     lastShakeTime = millis();
-    // PC도 흔들기 강하게
     let rawPushX = (mouseX - pmouseX) * 0.8;
     let rawPushY = (mouseY - pmouseY) * 0.8;
     let mX = mouseX - width/2;
@@ -265,7 +245,6 @@ function mouseMoved() {
       let d = dist(mX, mY, card.x, card.y);
       if (d < shakeRadius) {
         let distFactor = map(d, 0, shakeRadius, 1.0, 0.2);
-        // 회전 최소화
         let randomSpin = random(-0.05, 0.05) * distFactor;
         card.applyForce(rawPushX * distFactor, rawPushY * distFactor, randomSpin);
       }
@@ -273,27 +252,18 @@ function mouseMoved() {
   }
 }
 
-// [수정] 모바일 흔들기 (강하게 & 회전 억제)
 function deviceShaken() {
   if (appMode === 'DETAIL') return;
   if (millis() - lastReleaseTime < 200) return;
   if (millis() - lastShakeTime < 300) return;
-  
   lastShakeTime = millis();
-  
   for (let i = 0; i < cards.length; i++) {
     let card = cards[i];
     let randomAngle = random(TWO_PI);
-    
-    // [수정] 이동 힘 대폭 증가 (30~55)
-    let forceMag = random(30, 55); 
-    
+    let forceMag = random(15, 35); 
     let forceX = cos(randomAngle) * forceMag;
     let forceY = sin(randomAngle) * forceMag;
-    
-    // [수정] 회전은 거의 없게 (-0.05 ~ 0.05)
     let randomSpin = random(-0.05, 0.05); 
-    
     card.applyForce(forceX, forceY, randomSpin);
   }
 }
@@ -318,14 +288,18 @@ function lerpAngle(from, to, amt) {
 
 // 6. BusinessCard 클래스
 class BusinessCard {
-  constructor(tempX, tempY, tempAngle, tempBackColor) {
+  constructor(tempX, tempY, tempAngle, frontImg, backImg, id) {
     this.x = tempX;
     this.y = tempY;
     this.z = 0;
     this.w = cardW; 
     this.h = cardH;
     this.angle = tempAngle;
-    this.backColor = tempBackColor;
+    
+    // [수정] 이미지 및 ID 저장
+    this.frontImg = frontImg;
+    this.backImg = backImg;
+    this.id = id; // 0~9
 
     this.isDragging = false;
     this.dragOffsetX = 0;
@@ -341,7 +315,6 @@ class BusinessCard {
     this.velX = 0;
     this.velY = 0;
     this.angleVel = 0;
-    
     this.mass = 1.0; 
     this.damping = 0.85; 
     this.angleDamping = 0.90; 
@@ -399,43 +372,39 @@ class BusinessCard {
     rectMode(CENTER);
     imageMode(CENTER);
 
-    // 뒷면 그리기
     if (this.flipAngle > HALF_PI) {
+      // 뒷면 그리기
       push();
       rotateY(PI);
-      fill(this.backColor);
-      rect(0, 0, this.w, this.h);
       
-      // [수정] + 아이콘
+      // [수정] 뒷면 이미지 그리기
+      if (this.backImg) {
+        image(this.backImg, 0, 0, this.w, this.h);
+      } else {
+        fill(200); // 이미지 로드 실패 시 회색
+        rect(0, 0, this.w, this.h);
+      }
+      
+      // + 아이콘
       if (latestFlippedCard === this) {
-        // 위치: 우측 하단 (20px 여백)
-        // 로컬좌표상 오른쪽 = +w/2 (rotateY로 인해 화면상 왼쪽)
-        // 화면상 오른쪽 = -w/2
-        // 따라서 -w/2 + 20 은 화면상 오른쪽 끝에서 20px 안쪽
         let btnX = this.w/2 - 20; 
         let btnY = this.h/2 - 20; 
         
         push();
         translate(btnX, btnY, 5); 
-        
-        // 얇은 십자가(+)
         stroke(0, 200); 
-        strokeWeight(1.5); 
+        strokeWeight(1.0); 
         strokeCap(SQUARE);
-        
-        // [수정] 크기 6.5px로 확대
-        let size = 6.5; 
+        let size = 4; 
         line(-size, 0, size, 0); 
         line(0, -size, 0, size); 
-        
         pop();
       }
-      
       pop();
     } else {
       // 앞면 그리기
-      if (cardFrontImage) {
-        image(cardFrontImage, 0, 0, this.w, this.h);
+      if (this.frontImg) {
+        image(this.frontImg, 0, 0, this.w, this.h);
       } else {
         fill(255);
         rect(0, 0, this.w, this.h);
@@ -477,15 +446,12 @@ class BusinessCard {
     let dy = my - this.y;
     let cosA = cos(-this.angle);
     let sinA = sin(-this.angle);
-    
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
     let btnX = -this.w/2 + 20; 
     let btnY = this.h/2 - 20;
     
-    // 터치 영역은 넉넉하게 30px
-    // -unrotatedX (부호 반전)
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 30) {
       return true;
     }
