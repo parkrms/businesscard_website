@@ -1,6 +1,4 @@
-// ==========================================
 // 1. 전역 변수 및 설정
-// ==========================================
 let frontImages = []; 
 let backImages = [];  
 let shadowTexture;    
@@ -18,7 +16,6 @@ let currentCard = null;
 let pressStartTime;
 let latestFlippedCard = null; 
 
-// PC 흔들기 역치 (500)
 let mouseSpeedThreshold = 500.0; 
 let shakeRadius; 
 
@@ -64,7 +61,6 @@ function setup() {
 
   calculateCardDimensions();
   
-  // 그림자
   let shadowTextureWidth = cardW * 1.5; 
   let shadowTextureHeight = cardH * 1.5; 
   shadowTexture = createGraphics(shadowTextureWidth, shadowTextureHeight);
@@ -317,7 +313,7 @@ function lerpAngle(from, to, amt) {
 
 
 // ==========================================
-// 6. BusinessCard 클래스
+// 6. BusinessCard 클래스 (반응형 + 아이콘 적용)
 // ==========================================
 class BusinessCard {
   constructor(tempX, tempY, tempAngle, frontImg, backImg, id) {
@@ -327,8 +323,6 @@ class BusinessCard {
     this.w = cardW; 
     this.h = cardH;
     this.angle = tempAngle;
-    
-    // 색상 할당
     this.backColor = backColors[id % backColors.length];
     
     this.frontImg = frontImg;
@@ -418,16 +412,20 @@ class BusinessCard {
         rect(0, 0, this.w, this.h);
       }
       
-      // + 아이콘
+      // [수정] 반응형 + 아이콘
       if (latestFlippedCard === this) {
-        // [수정] 여백 20->35로 증가 (더 안쪽으로)
-        let btnX = this.w/2 - 25; 
-        let btnY = this.h/2 - 25; 
+        // [비율 계산] 여백과 크기를 명함 크기(this.w)에 비례하게 설정
+        let padding = this.w * 0.08; // 명함 너비의 8% 여백
+        let iconSize = this.w * 0.03; // 명함 너비의 3% 크기
+        let lineThick = max(1, this.w * 0.004); // 최소 1px, 비율따라 두꺼워짐
+
+        let btnX = this.w/2 - padding; 
+        let btnY = this.h/2 - padding; 
         
         push();
         translate(btnX, btnY, 5); 
         
-        // 색상 반전
+        // 반전 색상
         let r = 255, g = 255, b = 255;
         if (this.backColor) {
            r = 255 - red(this.backColor);
@@ -436,13 +434,11 @@ class BusinessCard {
         }
         stroke(r, g, b); 
         
-        strokeWeight(1.5); 
+        strokeWeight(lineThick); 
         strokeCap(SQUARE);
         
-        let size = isMobileDevice ? 8 : 10;
-        
-        line(-size, 0, size, 0); 
-        line(0, -size, 0, size); 
+        line(-iconSize, 0, iconSize, 0); 
+        line(0, -iconSize, 0, iconSize); 
         pop();
       }
       pop();
@@ -494,12 +490,15 @@ class BusinessCard {
     let unrotatedX = dx * cosA - dy * sinA;
     let unrotatedY = dx * sinA + dy * cosA;
     
-    // [수정] 터치 영역도 35px로 이동 (아이콘과 동기화)
-    let btnX = -this.w/2 + 35; 
-    let btnY = this.h/2 - 35;
+    // [수정] 터치 영역도 반응형으로 계산
+    let padding = this.w * 0.08;
+    let btnX = -this.w/2 + padding; // 로컬 왼쪽
+    let btnY = this.h/2 - padding;
     
-    // 터치 영역 반경 50px
-    if (dist(-unrotatedX, unrotatedY, btnX, btnY) < 50) {
+    // 터치 반경도 비율에 맞게 (최소 40px은 보장)
+    let touchRadius = max(40, this.w * 0.15);
+
+    if (dist(-unrotatedX, unrotatedY, btnX, btnY) < touchRadius) {
       return true;
     }
     return false;
