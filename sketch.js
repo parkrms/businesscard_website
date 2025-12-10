@@ -421,8 +421,8 @@ class BusinessCard {
       // + 아이콘
       if (latestFlippedCard === this) {
         // [수정] 여백 20->35로 증가 (더 안쪽으로)
-        let btnX = this.w/2 - 35; 
-        let btnY = this.h/2 - 35; 
+        let btnX = this.w/2 - 25; 
+        let btnY = this.h/2 - 25; 
         
         push();
         translate(btnX, btnY, 5); 
