@@ -420,7 +420,7 @@ class BusinessCard {
         let padding = this.w * 0.08; // 명함 너비의 8% 여백
         
         // [수정] 아이콘 크기 조정: PC는 작게(0.025), 모바일은 크게(0.04)
-        let ratio = isMobileDevice ? 0.04 : 0.025;
+        let ratio = isMobileDevice ? 0.03 : 0.025;
         let iconSize = this.w * ratio; 
         
         let lineThick = max(1, this.w * 0.004); // 최소 1px
