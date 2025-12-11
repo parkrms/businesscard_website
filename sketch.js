@@ -108,6 +108,7 @@ function draw() {
   
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
+    if (c === focusedCard) continue; 
     if (!c.isDragging && !c.isFlipping) {
       push();
       translate(0, 0, i * 1); 
@@ -121,6 +122,7 @@ function draw() {
 
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
+    if (c === focusedCard) continue;
     if (c.isDragging || c.isFlipping) {
       push();
       translate(0, 0, 10); 
@@ -499,8 +501,11 @@ class BusinessCard {
     let btnX = -this.w/2 + padding; // 로컬 왼쪽
     let btnY = this.h/2 - padding;
     
-    // 터치 반경도 비율에 맞게 (최소 40px은 보장)
-    let touchRadius = max(40, this.w * 0.15);
+    // 터치 반경 설정
+    // PC일 경우 클릭 범위를 더 넓게 설정 (2.5배)
+    let touchRadius = isMobileDevice 
+      ? max(40, this.w * 0.15) 
+      : max(60, this.w * 0.25); 
 
     if (dist(-unrotatedX, unrotatedY, btnX, btnY) < touchRadius) {
       return true;
