@@ -26,20 +26,17 @@
       body {
         position: fixed; inset: 0; width: 100%; height: var(--app-height); 
         overflow: hidden;
-        /* [수정] 배경색 더 어둡게 (20) - sketch.js와 통일 */
         background-color: #141414; 
         font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
         color: #e0e0e0;
         
-        /* [핵심] 우클릭/드래그/선택 방지 (저장 방지) */
         touch-action: none; 
         user-select: none; -webkit-user-select: none;
-        -webkit-touch-callout: none; /* iOS 롱프레스 메뉴 차단 */
+        -webkit-touch-callout: none;
         
         padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
       
-      /* 캔버스 우클릭 방지 */
       canvas { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; outline: none; pointer-events: auto; }
 
       /* --- [닫기 버튼] --- */
@@ -71,10 +68,19 @@
       #detail-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         z-index: 100; opacity: 0; pointer-events: none;
+        
+        /* 투명도 애니메이션 */
         transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        
         background: rgba(0, 0, 0, 0.7); 
         backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        
         touch-action: pan-y; overflow-y: auto; -webkit-overflow-scrolling: touch;
+
+        /* [핵심 수정] 모바일 렌더링 강제 가속 (깜빡임 방지) */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        will-change: opacity;
       }
       #detail-layer.active { opacity: 1; pointer-events: auto; }
 
@@ -97,7 +103,6 @@
         position: sticky; top: 100px; height: fit-content;
         display: flex; flex-direction: column; 
         color: #fff; text-align: left;
-        /* 텍스트 선택 가능하게 하려면 auto, 막으려면 none */
         user-select: text; -webkit-user-select: text; 
       }
       .meta-data { 
@@ -119,13 +124,10 @@
       .right-section { width: 65%; padding-left: 20px; }
       .image-list { display: flex; flex-direction: column; gap: 40px; width: 100%; }
       
-      /* [핵심] 이미지 저장 방지 스타일 */
       .detail-image {
         width: 100%; height: auto; display: block;
         border-radius: 4px; background-color: #111;
-        /* 이미지 드래그 방지 */
         pointer-events: none; 
-        /* iOS 롱프레스 방지 */
         -webkit-touch-callout: none;
         user-select: none; -webkit-user-select: none;
       }
@@ -169,7 +171,6 @@
         text-shadow: 0 2px 10px rgba(0,0,0,0.5); 
       }
       
-      /* [수정] 흔들림 애니메이션 (매우 미세하게) */
       @keyframes shakeText {
         0% { transform: translate(0, 0) rotate(0deg); }
         25% { transform: translate(0.3px, 0.3px) rotate(0.3deg); }
@@ -240,13 +241,13 @@
       const projects = [
         { id: 1, year: "2023", title: "Two Holes Watch", imgCount: 6, kr: "왜 시계는 대부분 원이 하나일까?\n머그컵과 도넛은 서로 같다. 위상수학의 관점에서 둘은 구멍이 한 개라는 점에서 동일하다. Two Holes Watch는 사물을 바라보는 새로운 위상수학적 관점을 도입한 첫 번째 시도이다. 사용자는 원하는 구멍에 시계 부품을 끼우고, 다른 쪽을 자유롭게 사용할 수 있다.", en: "Why do most watches have a single circle?\nA mug and a donut are essentially the same. From a topological perspective, they are identical in that they both possess a single hole. Two Holes Watch is the first attempt to introduce a new topological perspective to viewing objects. Users can insert the watch module into their preferred hole, leaving the other one free for use." },
         { id: 2, year: "2025", title: "Fashion Runway Typology", imgCount: 10, kr: "패션쇼도 건축이다.\n보통 패션쇼에서는 장소보다 옷이 담긴 보그샷과 유명인의 사진들이 더 많은 주목을 받는다. 하지만 이 전시는 일순간 눈에 띄는 것이 최우선인 패션쇼의 보이지 않는 요소 하나하나를 도면화해서 보여준다. ‘일시성’과 ‘영속성’이라는 서로 지향하는 바가 상반된 패션과 건축의 경계에서, ‘보이는 것’에 치중한 지금의 시대정신을 그리는 것이다.", en: "A fashion show is also architecture.\nTypically, editorial shots of clothes and celebrity photos garner more attention than the venue itself. However, this exhibition diagrams the invisible elements of fashion shows, where instant visibility is paramount. Standing at the boundary between fashion and architecture—two fields with opposing aims of 'temporality' and 'permanence'—it portrays the current zeitgeist that obsesses over 'the visible.'" },
-        { id: 3, year: "2025", title: "ChAIR ChAIR", imgCount: 9, kr: "하나의 사물에는 여러 기능들이 중첩되어 있다. 누군가 이를 사용할 때, 비로소 중첩이 깨지게 된다. 하지만 모두가 대상을 의도된 대로만 사용하지 않는다. ChAIR ChAIR는 의자가 아니지만 앉을 수 있는 사물들을 수집하고, 이를 다시 의자로 디자인하는 작업이다. 의자의 형태를 새롭게 창조하기보다, 중첩된 기능을 추출해냈을 뿐이다.", en: "Multiple functions are superposed within a single object. This superposition only collapses when someone uses the object. However, not everyone utilizes objects solely as intended. ChAIR ChAIR collects objects that are not chairs but can be sat upon, redesigning them into chairs. Rather than creating a new form, it merely extracts the superposed function." },
+        { id: 3, year: "2025", title: "ChAIR ChAIR", imgCount: 9, kr: "양자역학적 디자인.\n하나의 사물에는 여러 기능들이 중첩되어 있다. 누군가 이를 사용할 때, 비로소 중첩이 깨지게 된다. 하지만 모두가 대상을 의도된 대로만 사용하지 않는다. ChAIR ChAIR는 의자가 아니지만 앉을 수 있는 사물들을 수집하고, 이를 다시 의자로 디자인하는 작업이다. 의자의 형태를 새롭게 창조하기보다, 중첩된 기능을 추출해냈을 뿐이다.", en: "Quantum mechanical design.\nMultiple functions are superposed within a single object. This superposition only collapses when someone uses the object. However, not everyone utilizes objects solely as intended. ChAIR ChAIR collects objects that are not chairs but can be sat upon, redesigning them into chairs. Rather than creating a new form, it merely extracts the superposed function." },
         { id: 4, year: "2025", title: "Book Shelf Lighting", imgCount: 4, kr: "책장에서 책을 꺼내는 행위로 빛을 조절할 수 없을까?\nBook Shelf Lighting은 책장에서 책을 꺼내는 행위에서 착안한 조명이다. 연약한 종이를 기울여 섬세한 움직임으로 밝기를 조절할 수 있다. A4 규격의 어떤 종이든 끼워 사용할 수 있고, 종이의 색과 재질에 따라 빛의 느낌이 달라진다. 사용자는 종이에 메모를 남기거나 원하는 이미지를 삽입해 조명의 일부로 활용할 수 있다. 또한 설명서는 그 자체로 바로 조명에 끼워 사용할 수 있다.", en: "Can we control light through the act of pulling a book from a shelf?\nBook Shelf Lighting is a lighting fixture inspired by this very action. Brightness is controlled by the delicate movement of tilting a sheet of paper. Any A4-sized paper is compatible, and the ambiance changes depending on the paper's color and texture. Users can write notes or print images on the paper to make it part of the design. Even the instruction manual itself can be inserted and used immediately." },
         { id: 5, year: "2023", title: "Book Chair", imgCount: 7, kr: "버려지는 책을 의자로 만들 수는 없을까?\n책은 생각보다 연약하지 않다. 종이가 모아지는 책등 부분은 상당한 무게를 견딜 수 있다. Book Chair는 간단한 모듈을 연결하여 책을 스툴로 만들 수 있는 작업이다. 종이를 한 장 한 장 겹쳐, 원하는 만큼 의자를 확장할 수도 있다.", en: "Can books be transformed into chairs?\nBooks are not as fragile as they seem. The spine, where the pages converge, can withstand significant weight. Book Chair is a project that turns books into stools by connecting simple modules. By overlapping pages one by one, the chair can be expanded to any desired size." },
         { id: 6, year: "2023", title: "Spin Cleaner", imgCount: 6, kr: "청소기 솔이 메인 디자인 요소가 될 수 있을까?\n휴대용 청소기의 솔은 전혀 아름답지 않다. 심지어 먼지를 모아주는 기능도 제대로 수행하지 못한다. Spin Cleaner는 디자인에서 소외되었던 요소를 전방으로 배치해, 제품의 핵심으로 재정의한 작업이다.", en: "Can a vacuum cleaner’s brush become the main design element?\nThe brush on a portable vacuum is far from beautiful. It often fails even to perform its function of collecting dust properly. Spin Cleaner brings this overlooked element to the forefront, redefining it as the core of the product." },
         { id: 7, year: "2023", title: "Paper Cup Lighting", imgCount: 3, kr: "종이컵을 차곡차곡 쌓는 행위가 빛이 되면 어떨까?\n모듈을 하나하나 쌓아 원하는 만큼의 조도를 조절하는 조명이다. 언뜻 봤을 때는 종이컵처럼 보이지 않지만, 모듈과 조명의 선이 자연스럽게 종이컵을 연상시킨다.", en: "What if the act of stacking paper cups became a source of light?\nThis lighting fixture allows users to control intensity by stacking modules one by one. While it may not look like a paper cup at first glance, the lines of the modules and the light naturally evoke the form of a paper cup." },
         { id: 8, year: "2023", title: "Water Strider\nUmbrella Holder", imgCount: 1, kr: "더러움을 숨기지 않는 디자인.\n보통의 디자인은 더러운 요소를 숨긴다. 제품이 실제로 양산되고, 사용하면서 사소한 단점들은 생겨날 수밖에 없다. 이 단점들을 외면하지 않고 적극적으로 이용할 때, 오히려 흥미로운 결과물이 탄생한다. 이 제품은 우산에서 떨어지는 빗물을 숨기지 않고, 빗물이 고이면 소금쟁이를 연상시킨다.", en: "Design that does not hide untidiness.\nConventional design tends to conceal messy elements. However, trivial shortcomings inevitably arise as products are mass-produced and used. When these drawbacks are actively utilized rather than ignored, intriguing results can emerge. This product does not hide the rainwater dripping from umbrellas; rather, as the water collects, it evokes the image of a water strider." },
-        { id: 9, year: "2025", title: "1 2 3 4·5", imgCount: 7, kr: "너무 잘 찍으려고 애쓰면, 잘 찍히지 않는다. 그리고 내가 익숙한 구도로만 자꾸 회귀한다. 이 작업은 5주 동안 점차 나에게서 벗어나 새로운 마음가짐을 찾는 여정이다.", en: "If I try too hard to take a good photo, I often fail. I also tend to revert to familiar compositions. This project is a five-week journey to gradually detach from myself and discover a new mindset." },
+        { id: 9, year: "2025", title: "1 2 3 4·5", imgCount: 7, kr: "찍지 않는 사진가.\n너무 잘 찍으려고 애쓰면, 잘 찍히지 않는다. 그리고 내가 익숙한 구도로만 자꾸 회귀한다. 이 작업은 5주 동안 점차 나에게서 벗어나 새로운 마음가짐을 찾는 여정이다.", en: "The photographer who does not take photos.\nIf you try too hard to take a good photo, you often fail. You also tend to revert to familiar compositions. This project is a five-week journey to gradually detach from myself and discover a new mindset." },
         { id: 10, year: "2025", title: "Untitled Photo Work", imgCount: 10, kr: "", en: "" }
       ];
 
@@ -268,7 +269,6 @@
           img.src = `${folderNum}/${folderNum}_${i}.jpg`; 
           img.className = 'detail-image';
           img.onerror = function() { this.style.display = 'none'; };
-          // [수정] 우클릭 방지 이벤트 추가
           img.oncontextmenu = function() { return false; };
           imgContainer.appendChild(img);
         }
@@ -285,7 +285,6 @@
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
       function renderHelp() {
-        // [수정] 텍스트 통일 (Shake) & 애니메이션
         instContainer.innerHTML = `
           <div class="inst-item">Drag</div>
           <div class="inst-item">${isMobile ? 'Tap' : 'Click'}</div>
