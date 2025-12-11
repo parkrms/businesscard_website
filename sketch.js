@@ -108,7 +108,6 @@ function draw() {
   
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
-    if (c === focusedCard) continue; 
     if (!c.isDragging && !c.isFlipping) {
       push();
       translate(0, 0, i * 1); 
@@ -122,7 +121,6 @@ function draw() {
 
   for (let i = 0; i < cards.length; i++) {
     let c = cards[i];
-    if (c === focusedCard) continue;
     if (c.isDragging || c.isFlipping) {
       push();
       translate(0, 0, 10); 
